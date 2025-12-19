@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 
 const API_URL = 'http://localhost:8000';
 
-type AppState = 
+type AppState =
   | { screen: 'login' }
   | { screen: 'user-dashboard'; userId: string; userName: string }
   | { screen: 'admin-dashboard'; adminId: string; adminName: string; email: string }
@@ -60,7 +60,7 @@ export default function App() {
         const authData = await authRes.json();
         setAuthorityMembers(authData.map((m: any) => ({ ...m, id: String(m.id) })));
       }
-      
+
       const incRes = await fetch(`${API_URL}/incidents/`);
       if (incRes.ok) {
         const incData = await incRes.json();
@@ -80,6 +80,28 @@ export default function App() {
     }
   }, [appState.screen]);
 
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem('fantasticfour_session');
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        setAppState(parsedState);
+      } catch (e) {
+        console.error("Failed to restore session", e);
+      }
+    }
+  }, []);
+
+  // Save session to localStorage when appState changes
+  useEffect(() => {
+    if (appState.screen !== 'login') {
+      localStorage.setItem('fantasticfour_session', JSON.stringify(appState));
+    } else {
+      localStorage.removeItem('fantasticfour_session');
+    }
+  }, [appState]);
+
   const handleLogin = async (userType: 'user' | 'authority', email?: string, password?: string) => {
     if (userType === 'user') {
       try {
@@ -88,11 +110,11 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: `User` }) // Default name
         });
-        
+
         if (res.ok) {
           const newUser = await res.json();
           const userIdStr = String(newUser.id);
-          
+
           setAppState({
             screen: 'user-dashboard',
             userId: userIdStr,
@@ -113,11 +135,11 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
-        
+
         if (res.ok) {
           const data = await res.json();
           // data matches {id, name, email, role}
-          
+
           switch (data.role) {
             case 'admin':
               setAppState({
@@ -149,8 +171,8 @@ export default function App() {
           toast.error('Invalid credentials');
         }
       } catch (err) {
-         toast.error("Login failed");
-         console.error(err);
+        toast.error("Login failed");
+        console.error(err);
       }
     }
   };
@@ -162,7 +184,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, name, role, password })
       });
-      
+
       if (res.ok) {
         const newMember = await res.json();
         toast.success(`${role.toUpperCase()} added!`, { description: `ID: ${newMember.id}` });
@@ -191,7 +213,7 @@ export default function App() {
     if (type === 'medical' || type === 'accident') {
       authority = 'health';
     }
-    
+
     try {
       const res = await fetch(`${API_URL}/incidents/`, {
         method: 'POST',
@@ -204,7 +226,7 @@ export default function App() {
           authority
         })
       });
-      
+
       if (res.ok) {
         toast.success('Emergency alert sent!', { description: `Sent to ${authority}` });
         refreshData();
