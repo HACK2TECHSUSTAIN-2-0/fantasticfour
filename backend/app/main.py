@@ -114,7 +114,7 @@ def read_authority_members(db: Session = Depends(get_db)):
 @app.post("/incidents/", response_model=schemas.Incident)
 def create_incident(incident: schemas.IncidentCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_incident = crud.create_incident(db=db, incident=incident)
-    # Future: trigger pipeline/background if needed
+    # Optional: add background tasks if needed
     return db_incident
 
 

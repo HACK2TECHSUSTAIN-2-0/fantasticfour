@@ -1,54 +1,46 @@
 import os
-import tempfile
 from typing import Optional
 
-from faster_whisper import WhisperModel
+import requests
 
-# Configurable model/device
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "small")
-WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")
-WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
-
-_model = None
-
-
-def _get_model():
-    global _model
-    if _model is None:
-        _model = WhisperModel(
-            WHISPER_MODEL_SIZE,
-            device=WHISPER_DEVICE,
-            compute_type=WHISPER_COMPUTE_TYPE,
-        )
-    return _model
+SARVAM_SPEECH_URL = os.getenv("SARVAM_SPEECH_URL", "https://api.sarvam.ai/speech-to-text")
+SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
 
 
 def transcribe_to_english(
-    file_bytes: bytes,
-    filename: str,
-    content_type: Optional[str] = None,
-    source_lang: str = "auto",
+  file_bytes: bytes,
+  filename: str,
+  content_type: Optional[str] = None,
+  source_lang: str = "auto"
 ) -> tuple[Optional[str], Optional[str]]:
-    """
-    Transcribe audio to English using local Whisper (translate task).
-    Returns (text, error_message).
-    """
-    try:
-        # Persist to temp file for whisper
-        suffix = os.path.splitext(filename)[1] or ".m4a"
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp.write(file_bytes)
-            tmp_path = tmp.name
+  """
+  Send audio to Sarvam for STT and translate to English.
+  Returns (text, error_message) where text is None on failure.
+  """
+  if not SARVAM_API_KEY:
+    return None, "SARVAM_API_KEY missing"
 
-        model = _get_model()
-        # task="translate" forces English output. language=None -> auto-detect
-        language = None if source_lang in ("auto", "", None) else source_lang
-        segments, _ = model.transcribe(tmp_path, task="translate", language=language, beam_size=1)
-        text = " ".join([seg.text for seg in segments]).strip()
-        os.remove(tmp_path)
-
-        if not text:
-            return None, "Whisper returned empty transcript"
-        return text, None
-    except Exception as e:
-        return None, str(e)
+  try:
+    files = {
+      "file": (
+        filename,
+        file_bytes,
+        content_type or "audio/m4a",
+      )
+    }
+    data = {
+      "source_language": source_lang or "auto",
+      "target_language": "en",
+    }
+    headers = {
+      "Authorization": f"Bearer {SARVAM_API_KEY}",
+    }
+    resp = requests.post(SARVAM_SPEECH_URL, files=files, data=data, headers=headers, timeout=20)
+    resp.raise_for_status()
+    payload = resp.json()
+    text = payload.get("translated_text") or payload.get("text") or payload.get("transcript")
+    if not text:
+      return None, f"Unexpected response: {payload}"
+    return text, None
+  except Exception as e:
+    return None, str(e)
