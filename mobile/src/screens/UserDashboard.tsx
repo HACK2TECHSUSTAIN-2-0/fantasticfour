@@ -1,15 +1,18 @@
 import React, { useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Audio } from 'expo-av';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, gradients } from '../theme';
+import { uploadSpeechToEnglish } from '../api';
 
 interface UserDashboardProps {
   userId: string;
   userName: string;
   onSendIncident: (type: string, message: string, isVoice: boolean) => void;
+  onLogout?: () => void;
 }
 
 const emergencyTypes = [
@@ -19,12 +22,13 @@ const emergencyTypes = [
   { id: 'accident', label: 'Accident', color: '#f59e0b' },
 ];
 
-export function UserDashboard({ userId, userName, onSendIncident }: UserDashboardProps) {
+export function UserDashboard({ userId, userName, onSendIncident, onLogout }: UserDashboardProps) {
   const [activeTab, setActiveTab] = useState<'sos' | 'history' | 'profile'>('sos');
   const [incidentMessage, setIncidentMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingType, setRecordingType] = useState<string | null>(null);
-  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const triggerSend = (type: string, msg?: string) => {
     const payload = msg ?? incidentMessage.trim();
@@ -33,26 +37,45 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
     if (!msg) setIncidentMessage('');
   };
 
-  const handleVoice = (type: string) => {
-    onSendIncident(type, 'Voice message recorded', true);
-  };
-
-  const startLongPress = (type: string) => {
-    pressTimerRef.current = setTimeout(() => {
-      setIsRecording(true);
-      setRecordingType(type);
-    }, 1200);
-  };
-
-  const endLongPress = () => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
-    }
-
-    if (isRecording && recordingType) {
-      onSendIncident(recordingType, 'Voice emergency message recorded', true);
+  const stopAndTranscribe = async () => {
+    try {
+      if (!recording) return;
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setRecording(null);
       setIsRecording(false);
       setRecordingType(null);
+      if (!uri) return;
+      setIsUploading(true);
+      const text = await uploadSpeechToEnglish(uri);
+      if (text) setIncidentMessage(text);
+    } catch {
+      // ignore errors
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const startRecording = async (type: string) => {
+    if (isRecording) return;
+    try {
+      const perm = await Audio.requestPermissionsAsync();
+      if (!perm.granted) {
+        alert('Microphone permission is required.');
+        return;
+      }
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+      const { recording: rec } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      setRecording(rec);
+      setIsRecording(true);
+      setRecordingType(type);
+    } catch {
+      setIsRecording(false);
+      setRecording(null);
     }
   };
 
@@ -87,12 +110,16 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
                 style={styles.textArea}
               />
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <PrimaryButton
-                  label="Voice Input"
-                  variant="outline"
-                  onPress={() => handleVoice('general')}
-                  style={{ flex: 1 }}
-                />
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPressIn={() => startRecording('general')}
+                  onPressOut={stopAndTranscribe}
+                  style={[styles.voiceButton, isRecording ? styles.voiceButtonActive : null]}
+                >
+                  <Text style={[styles.voiceButtonText, isRecording ? styles.voiceButtonTextActive : null]}>
+                    {isRecording ? 'Release to stop' : 'Hold for voice'}
+                  </Text>
+                </TouchableOpacity>
                 <PrimaryButton
                   label="Send Alert"
                   onPress={() => triggerSend('general')}
@@ -114,9 +141,8 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
                   <TouchableOpacity
                     key={type.id}
                     activeOpacity={0.9}
-                    onPress={() => triggerSend(type.id)}
-                    onPressIn={() => startLongPress(type.id)}
-                    onPressOut={endLongPress}
+                    onPressIn={() => startRecording(type.id)}
+                    onPressOut={stopAndTranscribe}
                     style={[styles.sosButton, { backgroundColor: type.color }, recordingType === type.id && isRecording ? styles.sosButtonActive : null]}
                   >
                     <Text style={styles.sosLabel}>{type.label}</Text>
@@ -127,6 +153,11 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
               {isRecording ? (
                 <View style={styles.recordingBanner}>
                   <Text style={styles.recordingText}>Recording... release to send</Text>
+                </View>
+              ) : null}
+              {isUploading ? (
+                <View style={styles.recordingBanner}>
+                  <Text style={styles.recordingText}>Processing voice...</Text>
                 </View>
               ) : null}
             </Card>
@@ -191,6 +222,13 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
                 <Text style={styles.label}>Session</Text>
                 <Text style={styles.body}>Stays active until removed by admin</Text>
               </View>
+              {onLogout ? (
+                <PrimaryButton
+                  label="Logout"
+                  onPress={onLogout}
+                  style={{ marginTop: 8 }}
+                />
+              ) : null}
             </Card>
           </View>
         ) : null}
@@ -306,6 +344,28 @@ const styles = StyleSheet.create({
     color: '#b91c1c',
     textAlign: 'center',
     fontWeight: '700',
+  },
+  voiceButton: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  voiceButtonActive: {
+    borderColor: colors.secondary,
+    backgroundColor: '#fff1f2',
+  },
+  voiceButtonText: {
+    fontWeight: '700',
+    color: colors.text,
+  },
+  voiceButtonTextActive: {
+    color: colors.secondary,
   },
   contactRow: {
     flexDirection: 'row',

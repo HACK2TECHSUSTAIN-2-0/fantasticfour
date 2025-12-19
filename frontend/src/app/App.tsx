@@ -278,6 +278,7 @@ export default function App() {
         <UserDashboard
           userId={appState.userId}
           userName={appState.userName}
+          apiBaseUrl={API_URL}
           onSendIncident={(type, message, isVoice) => handleSendIncident(appState.userId, type, message, isVoice)}
         />
       )}

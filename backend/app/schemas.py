@@ -52,3 +52,19 @@ class Incident(IncidentBase):
 
     class Config:
         from_attributes = True
+
+
+# Translation
+class TranslateRequest(BaseModel):
+    text: str
+    source_lang: Optional[str] = "auto"
+
+
+class TranslateResponse(BaseModel):
+    translated_text: str
+    original_text: str
+
+
+class SpeechToTextResponse(BaseModel):
+    translated_text: str
+    original_text: Optional[str] = None

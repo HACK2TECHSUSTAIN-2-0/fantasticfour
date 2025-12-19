@@ -9,16 +9,43 @@ interface UserDashboardProps {
   userId: string;
   userName: string;
   onSendIncident: (type: string, message: string, isVoice: boolean) => void;
+  apiBaseUrl: string;
 }
 
-export function UserDashboard({ userId, userName, onSendIncident }: UserDashboardProps) {
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+    SpeechRecognition: any;
+  }
+}
+
+export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: UserDashboardProps) {
   const [activeTab, setActiveTab] = useState<'sos' | 'history' | 'profile'>('sos');
   const [incidentMessage, setIncidentMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingType, setRecordingType] = useState<string | null>(null);
 
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recognitionRef = useRef<any>(null);
   const longPressThreshold = 3000; // 3 seconds
+
+  const translateText = async (text: string) => {
+    setIncidentMessage(text);
+    try {
+      const res = await fetch(`${apiBaseUrl}/translate/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, source_lang: 'auto' }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.translated_text) {
+        setIncidentMessage(data.translated_text);
+      }
+    } catch {
+      // Ignore translation errors and keep original text
+    }
+  };
 
   const handleSendIncident = (type: string, overrideMsg?: string) => {
     const msg = overrideMsg || incidentMessage.trim();
@@ -32,8 +59,21 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
   };
 
   const handleVoiceInput = (type: string) => {
-    // Simulate voice input - in production, this would use speech recognition API
-    onSendIncident(type, 'Voice message recorded', true);
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Voice input is not supported in this browser.');
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results).map((r: any) => r[0].transcript).join(' ');
+      translateText(transcript || '');
+    };
+    recognition.onerror = () => recognition.stop();
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   const handleMouseDown = (type: string) => {

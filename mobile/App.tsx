@@ -172,6 +172,7 @@ export default function App() {
           userId={appState.userId}
           userName={appState.userName}
           onSendIncident={(type, message, isVoice) => handleSendIncident(appState.userId, type, message, isVoice)}
+          onLogout={handleLogout}
         />
       ) : null}
 

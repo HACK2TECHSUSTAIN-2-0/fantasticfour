@@ -137,6 +137,28 @@ export async function createIncident(
   await handleResponse<any>(res);
 }
 
+export async function uploadSpeechToEnglish(audioUri: string, sourceLang = 'auto'): Promise<string> {
+  const form = new FormData();
+  const filename = audioUri.split('/').pop() || 'audio.m4a';
+  form.append('file', {
+    uri: audioUri,
+    name: filename,
+    type: 'audio/m4a',
+  } as any);
+  form.append('source_lang', sourceLang);
+
+  const res = await fetch(`${API_URL}/speech-to-english/`, {
+    method: 'POST',
+    body: form,
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  const data = await handleResponse<any>(res);
+  return data?.translated_text || '';
+}
+
 export function getApiBaseUrl() {
   return API_URL;
 }

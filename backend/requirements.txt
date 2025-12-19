@@ -9,3 +9,4 @@ python-multipart
 python-jose[cryptography]
 requests
 python-dotenv
+faster-whisper
