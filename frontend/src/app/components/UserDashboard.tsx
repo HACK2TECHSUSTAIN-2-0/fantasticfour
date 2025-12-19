@@ -22,12 +22,8 @@ declare global {
 export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: UserDashboardProps) {
   const [activeTab, setActiveTab] = useState<'sos' | 'history' | 'profile'>('sos');
   const [incidentMessage, setIncidentMessage] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingType, setRecordingType] = useState<string | null>(null);
 
-  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recognitionRef = useRef<any>(null);
-  const longPressThreshold = 3000; // 3 seconds
 
   const translateText = async (text: string) => {
     setIncidentMessage(text);
@@ -49,13 +45,9 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
 
   const handleSendIncident = (type: string, overrideMsg?: string) => {
     const msg = overrideMsg || incidentMessage.trim();
-    if (msg) {
-      onSendIncident(type, msg, false);
-      if (!overrideMsg) setIncidentMessage('');
-    } else if (type !== 'general') {
-      // SOS Button clicked with empty text -> Send generic SOS
-      onSendIncident(type, `SOS: ${type.toUpperCase()} ALERT`, false);
-    }
+    if (!msg && type === 'general') return;
+    onSendIncident(type, msg || `SOS: ${type.toUpperCase()} ALERT`, false);
+    if (!overrideMsg) setIncidentMessage('');
   };
 
   const handleVoiceInput = (type: string) => {
@@ -76,48 +68,21 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
     recognition.start();
   };
 
-  const handleMouseDown = (type: string) => {
-    pressTimerRef.current = setTimeout(() => {
-      setIsRecording(true);
-      setRecordingType(type);
-      // Start voice recording
-      console.log('Started voice recording for:', type);
-    }, longPressThreshold);
-  };
-
-  const handleMouseUp = () => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
-    }
-
-    if (isRecording && recordingType) {
-      // Stop recording and send
-      console.log('Stopped voice recording for:', recordingType);
-      onSendIncident(recordingType, 'Voice emergency message recorded', true);
-      setIsRecording(false);
-      setRecordingType(null);
+  const handleSos = () => {
+    const msg = incidentMessage.trim();
+    if (!msg) {
+      handleSendIncident('general', 'HIGH PRIORITY SOS');
+    } else {
+      handleSendIncident('general', msg);
     }
   };
-
-  const handleMouseLeave = () => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
-    }
-  };
-
-  const emergencyTypes = [
-    { id: 'medical', label: 'Medical Emergency', color: 'bg-red-500', icon: Activity, authority: 'health' },
-    { id: 'security', label: 'Security Threat', color: 'bg-orange-500', icon: Shield, authority: 'security' },
-    { id: 'harassment', label: 'Harassment', color: 'bg-purple-500', icon: AlertCircle, authority: 'security' },
-    { id: 'accident', label: 'Accident', color: 'bg-yellow-500', icon: AlertCircle, authority: 'health' },
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white p-4 sticky top-0 z-10 shadow-lg">
         <div className="max-w-4xl mx-auto">
-          <h1>Campus Safety</h1>
+          <h1>Welcome, {userName}</h1>
           <p className="text-white/80 text-sm">Stay Safe, Stay Connected</p>
         </div>
       </div>
@@ -126,87 +91,56 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
       <div className="max-w-4xl mx-auto p-4 pb-24">
         {activeTab === 'sos' && (
           <div className="space-y-4">
-            {/* User Info */}
-            <Card className="p-4 bg-white rounded-2xl shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Your Anonymous ID</p>
-                  <p className="font-mono">{userId}</p>
-                </div>
-                <Shield className="w-8 h-8 text-green-500" />
-              </div>
-            </Card>
-
-            {/* SOS Message Input */}
-            <Card className="p-6 bg-white rounded-2xl shadow-sm">
-              <h3 className="mb-4">Describe Your Emergency</h3>
-              <div className="space-y-3">
+            {/* SOS Message Input + Voice */}
+            <Card className="p-6 bg-white rounded-2xl shadow-sm space-y-4">
+              <div>
+                <h3 className="mb-2">Describe Your Emergency</h3>
                 <Textarea
                   placeholder="Type your emergency details here..."
                   value={incidentMessage}
                   onChange={(e) => setIncidentMessage(e.target.value)}
                   className="min-h-[100px] rounded-xl resize-none"
                 />
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleVoiceInput('general')}
-                    variant="outline"
-                    className="flex-1 rounded-xl"
-                  >
-                    <Mic className="w-4 h-4 mr-2" />
-                    Voice Input
-                  </Button>
-                  <Button
-                    onClick={() => handleSendIncident('general')}
-                    disabled={!incidentMessage.trim()}
-                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Alert
-                  </Button>
-                </div>
               </div>
-            </Card>
-
-            {/* Emergency Buttons */}
-            <Card className="p-6 bg-white rounded-2xl shadow-sm">
-              <h2 className="mb-2">Quick Emergency SOS</h2>
-              <p className="text-gray-600 text-sm mb-6">
-                Tap to send alert | Hold for 3 seconds to record voice message
-              </p>
-
-              <div className="grid grid-cols-2 gap-4">
-                {emergencyTypes.map((type) => (
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleVoiceInput('general')}
+                  variant="outline"
+                  className="flex-1 rounded-xl"
+                >
+                  <Mic className="w-4 h-4 mr-2" />
+                  Voice Input
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Medical', color: 'bg-red-50', type: 'medical' },
+                  { label: 'Security', color: 'bg-blue-50', type: 'security' },
+                  { label: 'Harassment', color: 'bg-orange-50', type: 'harassment' },
+                  { label: 'Accident', color: 'bg-purple-50', type: 'accident' },
+                ].map((item) => (
                   <button
-                    key={type.id}
-                    onClick={() => handleSendIncident(type.id)}
-                    onMouseDown={() => handleMouseDown(type.id)}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseLeave}
-                    onTouchStart={() => handleMouseDown(type.id)}
-                    onTouchEnd={handleMouseUp}
-                    className={`${type.color} text-white p-6 rounded-2xl hover:opacity-90 transition-all flex flex-col items-center justify-center relative ${isRecording && recordingType === type.id ? 'animate-pulse ring-4 ring-white' : ''
-                      }`}
+                    key={item.type}
+                    onClick={() => handleSendIncident(item.type)}
+                    className={`p-4 rounded-xl border border-gray-200 text-left transition hover:-translate-y-0.5 ${item.color}`}
                   >
-                    <type.icon className="w-8 h-8 mb-2" />
-                    <span className="text-center">{type.label}</span>
-                    {isRecording && recordingType === type.id && (
-                      <div className="absolute top-2 right-2">
-                        <Mic className="w-5 h-5 animate-pulse" />
-                      </div>
-                    )}
+                    <div className="font-semibold">{item.label}</div>
+                    <div className="text-xs text-gray-500 mt-1">Tap to send</div>
                   </button>
                 ))}
               </div>
-
-              {isRecording && (
-                <div className="mt-4 p-4 bg-red-50 border-2 border-red-500 rounded-2xl animate-pulse">
-                  <p className="text-red-700 text-center flex items-center justify-center">
-                    <Mic className="w-5 h-5 mr-2" />
-                    Recording... Release to send
-                  </p>
-                </div>
-              )}
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  onClick={handleSos}
+                  className="w-28 h-28 rounded-full bg-red-600 text-white flex flex-col items-center justify-center shadow-lg hover:bg-red-700 transition-colors"
+                >
+                  <span className="text-2xl font-bold">SOS</span>
+                  <span className="text-xs opacity-80">Tap to send</span>
+                </button>
+                <p className="text-xs text-gray-500 text-center">
+                  Empty text = HIGH PRIORITY. Otherwise uses your message.
+                </p>
+              </div>
             </Card>
 
             {/* Emergency Contacts */}

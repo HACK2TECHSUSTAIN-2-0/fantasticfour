@@ -16,8 +16,12 @@ def get_user(db: Session, user_id: int):
 def get_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.User).offset(skip).limit(limit).all()
 
+def get_user_by_email(db: Session, email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
+
 def create_user(db: Session, user: schemas.UserCreate):
-    db_user = models.User(name=user.name)
+    hashed_password = get_password_hash(user.password)
+    db_user = models.User(name=user.name, email=user.email, phone=user.phone, hashed_password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -49,13 +53,16 @@ def create_authority_member(db: Session, member: schemas.AuthorityMemberCreate):
     db.refresh(db_member)
     return db_member
 
-def create_incident(db: Session, incident: schemas.IncidentCreate):
+def create_incident(db: Session, incident: schemas.IncidentCreate, final_severity: str | None = None, officer_message: str | None = None, reasoning: str | None = None):
     db_incident = models.Incident(
         user_id=incident.user_id,
         type=incident.type,
         message=incident.message,
         is_voice=incident.is_voice,
-        authority=incident.authority
+        authority=incident.authority,
+        final_severity=final_severity,
+        officer_message=officer_message,
+        reasoning=reasoning,
     )
     db.add(db_incident)
     db.commit()

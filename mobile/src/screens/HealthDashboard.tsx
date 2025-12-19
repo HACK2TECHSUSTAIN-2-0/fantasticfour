@@ -16,8 +16,12 @@ interface HealthDashboardProps {
 }
 
 export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus }: HealthDashboardProps) {
+  const now = new Date().toLocaleString();
   const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
   const resolvedIncidents = incidents.filter((i) => i.status === 'resolved');
+  const highCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'high').length;
+  const mediumCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'medium').length;
+  const lowCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'low').length;
 
   const severityTone = (sev?: string) => {
     if (!sev) return 'info';
@@ -30,7 +34,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
     <View style={styles.screen}>
       <HeaderBar
         title="Health Services Dashboard"
-        subtitle="Medical Emergency Response"
+        subtitle={`Medical Emergency Response • ${now}`}
         gradient="redPink"
         rightContent={
           <TouchableOpacity onPress={onLogout} style={styles.logoutBtn}>
@@ -56,7 +60,15 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
           </Card>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Critical</Text>
-            <Text style={[styles.statValue, { color: '#ef4444' }]}>{incidents.filter((i) => i.final_severity === 'HIGH').length}</Text>
+            <Text style={[styles.statValue, { color: '#ef4444' }]}>{highCount}</Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.subtle}>Medium</Text>
+            <Text style={[styles.statValue, { color: '#f59e0b' }]}>{mediumCount}</Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.subtle}>Low</Text>
+            <Text style={[styles.statValue, { color: '#16a34a' }]}>{lowCount}</Text>
           </Card>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Responding</Text>
@@ -84,7 +96,9 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                       <Text style={styles.body}>{incident.type}</Text>
                       <Badge label={incident.status} tone={incident.status === 'responding' ? 'info' : 'warning'} />
                     </View>
-                    <Text style={styles.subtle}>User: {incident.userId}</Text>
+                    <Text style={styles.subtle}>
+                      User: {incident.user_name ? `${incident.user_name}${incident.user_phone ? ` (${incident.user_phone})` : ''}` : incident.userId}
+                    </Text>
                   </View>
                   {incident.final_severity ? <Badge label={incident.final_severity} tone={severityTone(incident.final_severity)} /> : null}
                 </View>

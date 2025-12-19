@@ -15,21 +15,17 @@ interface SecurityDashboardProps {
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
 }
 
-const patrols = [
-  { id: 'P1', officer: 'Officer Johnson', zone: 'North Campus', status: 'active' },
-  { id: 'P2', officer: 'Officer Smith', zone: 'South Campus', status: 'active' },
-  { id: 'P3', officer: 'Officer Davis', zone: 'Central Campus', status: 'break' },
-  { id: 'P4', officer: 'Officer Wilson', zone: 'East Campus', status: 'active' },
-];
+const patrols: any[] = [];
 
 export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus }: SecurityDashboardProps) {
+  const now = new Date().toLocaleString();
   const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
 
   return (
     <View style={styles.screen}>
       <HeaderBar
         title="Security Operations Center"
-        subtitle="Campus Security & Safety"
+        subtitle={`Campus Security & Safety • ${now}`}
         gradient="orangePink"
         rightContent={
           <TouchableOpacity onPress={onLogout} style={styles.logoutBtn}>
@@ -54,12 +50,16 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
             <Text style={[styles.statValue, { color: '#ef4444' }]}>{activeIncidents.length}</Text>
           </Card>
           <Card style={styles.statCard}>
-            <Text style={styles.subtle}>Active Patrols</Text>
-            <Text style={[styles.statValue, { color: '#16a34a' }]}>{patrols.filter((p) => p.status === 'active').length}</Text>
+            <Text style={styles.subtle}>Low Severity</Text>
+            <Text style={[styles.statValue, { color: '#16a34a' }]}>{incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'low').length}</Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.subtle}>Medium Severity</Text>
+            <Text style={[styles.statValue, { color: '#2563eb' }]}>{incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'medium').length}</Text>
           </Card>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>High Severity</Text>
-            <Text style={[styles.statValue, { color: '#ef4444' }]}>{incidents.filter((i) => i.final_severity === 'HIGH').length}</Text>
+            <Text style={[styles.statValue, { color: '#ef4444' }]}>{incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'high').length}</Text>
           </Card>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Resolved</Text>
@@ -80,7 +80,9 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                 <View style={styles.rowBetween}>
                   <View>
                     <Text style={styles.body}>{incident.type}</Text>
-                    <Text style={styles.subtle}>User: {incident.userId}</Text>
+                    <Text style={styles.subtle}>
+                      User: {incident.user_name ? `${incident.user_name}${incident.user_phone ? ` (${incident.user_phone})` : ''}` : incident.userId}
+                    </Text>
                   </View>
                   <Badge label={incident.status.toUpperCase()} tone={incident.status === 'responding' ? 'info' : 'warning'} />
                 </View>
@@ -103,21 +105,6 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
               </View>
             ))
           )}
-        </Card>
-
-        <Card style={{ gap: 12 }}>
-          <Text style={styles.title}>Active Patrol Units</Text>
-          <View style={{ gap: 10 }}>
-            {patrols.map((patrol) => (
-              <View key={patrol.id} style={styles.patrolRow}>
-                <View>
-                  <Text style={styles.body}>{patrol.officer}</Text>
-                  <Text style={styles.subtle}>{patrol.zone}</Text>
-                </View>
-                <Badge label={patrol.status} tone={patrol.status === 'active' ? 'success' : 'info'} />
-              </View>
-            ))}
-          </View>
         </Card>
 
         <Card style={{ gap: 12 }}>

@@ -17,6 +17,8 @@ interface Incident {
   officer_message?: string;
   final_severity?: string;
   reasoning?: string;
+  user_name?: string;
+  user_phone?: string;
 }
 
 interface SecurityDashboardProps {
@@ -28,6 +30,7 @@ interface SecurityDashboardProps {
 }
 
 export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus }: SecurityDashboardProps) {
+  const now = new Date().toLocaleString();
   // Local state for UI only, logic handled by polling in App.tsx
   const activeIncidents = incidents.filter(i => i.status !== 'resolved');
 
@@ -45,7 +48,7 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div>
             <h1>Security Operations Center</h1>
-            <p className="text-white/80 text-sm">Campus Security & Safety</p>
+            <p className="text-white/80 text-sm">Campus Security & Safety • {now}</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right mr-4">
@@ -77,9 +80,9 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
           <Card className="p-6 bg-white rounded-2xl shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm mb-1">Active Patrols</p>
+                <p className="text-gray-600 text-sm mb-1">Low Severity</p>
                 <div className="text-green-500">
-                  {patrols.filter(p => p.status === 'active').length}
+                  {incidents.filter(i => (i.final_severity || '').toLowerCase() === 'low').length}
                 </div>
               </div>
               <Radio className="w-8 h-8 text-green-500" />
@@ -88,8 +91,10 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
           <Card className="p-6 bg-white rounded-2xl shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm mb-1">CCTV Active</p>
-                <div className="text-blue-500">48/50</div>
+                <p className="text-gray-600 text-sm mb-1">Medium Severity</p>
+                <div className="text-blue-500">
+                  {incidents.filter(i => (i.final_severity || '').toLowerCase() === 'medium').length}
+                </div>
               </div>
               <Camera className="w-8 h-8 text-blue-500" />
             </div>
@@ -120,9 +125,8 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
 
         {/* Main Content */}
         <Tabs defaultValue="incidents" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="incidents">Active Incidents</TabsTrigger>
-            <TabsTrigger value="patrols">Patrol Management</TabsTrigger>
             <TabsTrigger value="map">Campus Map</TabsTrigger>
             <TabsTrigger value="protocols">Response Protocols</TabsTrigger>
           </TabsList>
@@ -176,7 +180,7 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                           </div>
                           <div className="flex items-center">
                             <Shield className="w-4 h-4 mr-1" />
-                            User: {incident.userId}
+                            User: {incident.user_name ? `${incident.user_name}${incident.user_phone ? ` (${incident.user_phone})` : ''}` : incident.userId}
                           </div>
                         </div>
                       </div>
@@ -209,63 +213,6 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                 </Card>
               ))
             )}
-          </TabsContent>
-
-          <TabsContent value="patrols" className="space-y-4">
-            <Card className="p-6 bg-white rounded-2xl shadow-sm">
-              <h3 className="mb-4">Active Patrol Units</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                {patrols.map((patrol) => (
-                  <div key={patrol.id} className="p-4 border border-gray-200 rounded-xl">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center">
-                        <div className={`w-3 h-3 rounded-full mr-3 ${patrol.status === 'active' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-                          }`} />
-                        <div>
-                          <div>{patrol.officer}</div>
-                          <p className="text-sm text-gray-600">{patrol.id}</p>
-                        </div>
-                      </div>
-                      <Badge className={patrol.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
-                        {patrol.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600 mb-3">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      {patrol.zone}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="flex-1 rounded-xl">
-                        <Radio className="w-4 h-4 mr-2" />
-                        Radio
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1 rounded-xl">
-                        <MapPin className="w-4 h-4 mr-2" />
-                        Track
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="p-6 bg-white rounded-2xl shadow-sm">
-              <h3 className="mb-4">Patrol Schedule</h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
-                  <span>Morning Shift (06:00 - 14:00)</span>
-                  <Badge className="bg-blue-500 text-white">4 Officers</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-orange-50 rounded-xl">
-                  <span>Evening Shift (14:00 - 22:00)</span>
-                  <Badge className="bg-orange-500 text-white">6 Officers</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl">
-                  <span>Night Shift (22:00 - 06:00)</span>
-                  <Badge className="bg-purple-500 text-white">5 Officers</Badge>
-                </div>
-              </div>
-            </Card>
           </TabsContent>
 
           <TabsContent value="map" className="space-y-4">

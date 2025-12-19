@@ -203,19 +203,25 @@ def parse_llm_decision(text: str):
                     pass
                 start = -1
 
-    # Last resort: try regex matching (less reliable for nested JSON)
-    match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text)
-    if match:
-        json_text = match.group(0)
-        try:
-            data = json.loads(json_text)
-            severity = data.get("severity")
-            actions = data.get("actions", [])
-            
-            if severity in {"LOW", "MEDIUM", "HIGH"} and isinstance(actions, list):
-                return severity, actions
-        except json.JSONDecodeError:
-            pass
+    # Last resorts: regex extraction for severity/actions even if JSON is malformed
+    # 1) Try to extract severity explicitly
+    severity_match = re.search(r'"severity"\s*:\s*"(?P<sev>LOW|MEDIUM|HIGH)"', text, re.IGNORECASE)
+    severity_guess = severity_match.group("sev").upper() if severity_match else None
+
+    # 2) Try to extract actions as best-effort list of quoted strings
+    actions_section = None
+    actions_match = re.search(r'"actions"\s*:\s*\[(.*?)\]', text, re.DOTALL | re.IGNORECASE)
+    if actions_match:
+        actions_section = actions_match.group(1)
+    actions_list: list[str] = []
+    if actions_section:
+        for item in re.findall(r'"([^"]+)"', actions_section):
+            clean_item = item.strip().strip(".")
+            if clean_item:
+                actions_list.append(clean_item)
+
+    if severity_guess in {"LOW", "MEDIUM", "HIGH"}:
+        return severity_guess, actions_list
 
     return None, []
 

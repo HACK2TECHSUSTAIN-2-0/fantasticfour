@@ -28,6 +28,10 @@ export function AdminDashboard({
   users,
   incidents,
 }: AdminDashboardProps) {
+  const now = new Date().toLocaleString();
+  const highCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'high').length;
+  const mediumCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'medium').length;
+  const lowCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'low').length;
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newMemberRole, setNewMemberRole] = useState<'admin' | 'health' | 'security'>('health');
   const [newMemberName, setNewMemberName] = useState('');
@@ -40,6 +44,9 @@ export function AdminDashboard({
   const stats = [
     { label: 'Total Users', value: users.length.toString(), color: '#2563eb' },
     { label: 'Active Incidents', value: activeIncidents.length.toString(), color: '#ef4444' },
+    { label: 'High Severity', value: highCount.toString(), color: '#ef4444' },
+    { label: 'Medium Severity', value: mediumCount.toString(), color: '#f59e0b' },
+    { label: 'Low Severity', value: lowCount.toString(), color: '#16a34a' },
     { label: 'Health Staff', value: members.filter((m) => m.role === 'health').length.toString(), color: '#ec4899' },
     { label: 'Security Staff', value: members.filter((m) => m.role === 'security').length.toString(), color: '#f97316' },
   ];
@@ -78,6 +85,7 @@ export function AdminDashboard({
             <Text style={styles.subtle}>Admin</Text>
             <Text style={styles.heading}>{adminName}</Text>
             <Text style={styles.subtle}>ID: {adminId}</Text>
+            <Text style={styles.subtle}>Now: {now}</Text>
           </View>
           <Badge label="Live" tone="info" />
         </View>
@@ -160,7 +168,9 @@ export function AdminDashboard({
                 <View style={styles.rowBetween}>
                   <View>
                     <Text style={styles.body}>{incident.type}</Text>
-                    <Text style={styles.subtle}>User: {incident.userId}</Text>
+                    <Text style={styles.subtle}>
+                      User: {incident.user_name ? `${incident.user_name}${incident.user_phone ? ` (${incident.user_phone})` : ''}` : incident.userId}
+                    </Text>
                   </View>
                   <Badge label={incident.status.toUpperCase()} tone={incident.status === 'responding' ? 'info' : 'warning'} />
                 </View>

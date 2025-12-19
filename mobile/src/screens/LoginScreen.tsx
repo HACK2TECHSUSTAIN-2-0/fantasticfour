@@ -5,7 +5,14 @@ import { colors, gradients } from '../theme';
 import { PrimaryButton } from '../components/PrimaryButton';
 
 interface LoginScreenProps {
-  onLogin: (type: 'user' | 'authority', email?: string, password?: string) => void;
+  onLogin: (
+    type: 'user' | 'authority',
+    email?: string,
+    password?: string,
+    name?: string,
+    mode?: 'login' | 'register',
+    phone?: string
+  ) => void;
   loading?: boolean;
   apiBaseUrl: string;
 }
@@ -14,16 +21,34 @@ export function LoginScreen({ onLogin, loading, apiBaseUrl }: LoginScreenProps) 
   const [selectedType, setSelectedType] = useState<'user' | 'authority' | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [userMode, setUserMode] = useState<'login' | 'register'>('login');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [phone, setPhone] = useState('');
 
-  const canSubmit = selectedType === 'user' || (selectedType === 'authority' && email && password);
+  const passwordsMatch = userMode === 'login' || password === confirmPassword;
+  const canSubmit =
+    !!selectedType &&
+    !!email &&
+    !!password &&
+    (selectedType === 'user'
+      ? passwordsMatch && (userMode === 'login' ? true : !!name && !!phone)
+      : true);
 
   const handleSubmit = () => {
     if (!canSubmit || !selectedType) return;
-    if (selectedType === 'user') {
-      onLogin('user');
-    } else {
-      onLogin('authority', email.trim(), password);
+    if (userMode === 'register' && password !== confirmPassword) {
+      alert('Passwords do not match.');
+      return;
     }
+    onLogin(
+      selectedType,
+      email.trim(),
+      password,
+      userMode === 'register' ? name.trim() : undefined,
+      selectedType === 'user' ? userMode : 'login',
+      selectedType === 'user' && userMode === 'register' ? phone.trim() : undefined
+    );
   };
 
   return (
@@ -52,7 +77,7 @@ export function LoginScreen({ onLogin, loading, apiBaseUrl }: LoginScreenProps) 
                 <Text style={[styles.toggleText, selectedType === 'user' ? styles.toggleTextActive : styles.toggleTextInactive]}>
                   User
                 </Text>
-                <Text style={styles.toggleCaption}>Anonymous</Text>
+                <Text style={styles.toggleCaption}>User Login</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.9}
@@ -97,13 +122,71 @@ export function LoginScreen({ onLogin, loading, apiBaseUrl }: LoginScreenProps) 
             ) : null}
 
             {selectedType === 'user' ? (
-              <View style={styles.infoBox}>
-                <Text style={styles.infoTitle}>Privacy-first access</Text>
-                <Text style={styles.infoText}>Tap continue to get a one-time anonymous ID. No personal details needed.</Text>
+              <View style={styles.form}>
+                <View style={styles.modeRow}>
+                  <TouchableOpacity
+                    style={[styles.modeChip, userMode === 'login' ? styles.modeChipActive : null]}
+                    onPress={() => setUserMode('login')}
+                  >
+                    <Text style={[styles.modeChipText, userMode === 'login' ? styles.modeChipTextActive : null]}>Login</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modeChip, userMode === 'register' ? styles.modeChipActive : null]}
+                    onPress={() => setUserMode('register')}
+                  >
+                    <Text style={[styles.modeChipText, userMode === 'register' ? styles.modeChipTextActive : null]}>Register</Text>
+                  </TouchableOpacity>
+                </View>
+                {userMode === 'register' ? (
+                  <TextInput
+                    placeholder="Full name"
+                    placeholderTextColor="#94a3b8"
+                    value={name}
+                    onChangeText={setName}
+                    style={styles.input}
+                  />
+                ) : null}
+                <TextInput
+                  placeholder="Email"
+                  placeholderTextColor="#94a3b8"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+                  style={styles.input}
+                />
+                {userMode === 'register' ? (
+                  <TextInput
+                    placeholder="Mobile number"
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="phone-pad"
+                    value={phone}
+                    onChangeText={setPhone}
+                    style={styles.input}
+                  />
+                ) : null}
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor="#94a3b8"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  style={styles.input}
+                />
+                {userMode === 'register' ? (
+                  <TextInput
+                    placeholder="Confirm password"
+                    placeholderTextColor="#94a3b8"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                    style={styles.input}
+                  />
+                ) : null}
               </View>
             ) : null}
 
-            <PrimaryButton label={selectedType === 'user' ? 'Continue' : 'Sign in'} onPress={handleSubmit} disabled={!canSubmit} loading={loading} />
+            <PrimaryButton label="Sign in" onPress={handleSubmit} disabled={!canSubmit} loading={loading} />
 
             <Text style={styles.apiText}>API: {apiBaseUrl}</Text>
           </View>
@@ -219,6 +302,29 @@ const styles = StyleSheet.create({
   form: {
     gap: 10,
     marginBottom: 12,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modeChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  modeChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#eef2ff',
+  },
+  modeChipText: {
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modeChipTextActive: {
+    color: colors.primary,
   },
   input: {
     backgroundColor: '#f8fafc',

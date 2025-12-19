@@ -15,19 +15,11 @@ interface UserDashboardProps {
   onLogout?: () => void;
 }
 
-const emergencyTypes = [
-  { id: 'medical', label: 'Medical', color: '#ef4444' },
-  { id: 'security', label: 'Security', color: '#f97316' },
-  { id: 'harassment', label: 'Harassment', color: '#a855f7' },
-  { id: 'accident', label: 'Accident', color: '#f59e0b' },
-];
-
 export function UserDashboard({ userId, userName, onSendIncident, onLogout }: UserDashboardProps) {
   const [activeTab, setActiveTab] = useState<'sos' | 'history' | 'profile'>('sos');
   const [incidentMessage, setIncidentMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [recordingType, setRecordingType] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const triggerSend = (type: string, msg?: string) => {
@@ -44,7 +36,6 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
       const uri = recording.getURI();
       setRecording(null);
       setIsRecording(false);
-      setRecordingType(null);
       if (!uri) return;
       setIsUploading(true);
       const text = await uploadSpeechToEnglish(uri);
@@ -56,7 +47,7 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
     }
   };
 
-  const startRecording = async (type: string) => {
+  const startRecording = async () => {
     if (isRecording) return;
     try {
       const perm = await Audio.requestPermissionsAsync();
@@ -72,33 +63,40 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
       const { recording: rec } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       setRecording(rec);
       setIsRecording(true);
-      setRecordingType(type);
     } catch {
       setIsRecording(false);
       setRecording(null);
     }
   };
 
+  const handleVoiceButton = async () => {
+    if (isRecording) {
+      await stopAndTranscribe();
+    } else {
+      await startRecording();
+    }
+  };
+
+  const handleSos = () => {
+    const payload = incidentMessage.trim();
+    if (!payload) {
+      onSendIncident('general', 'HIGH PRIORITY SOS', false);
+    } else {
+      onSendIncident('general', payload, false);
+      setIncidentMessage('');
+    }
+  };
+
   return (
     <View style={styles.screen}>
       <LinearGradient colors={gradients.purplePink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-        <Text style={styles.headerTitle}>Campus Safety</Text>
+        <Text style={styles.headerTitle}>Welcome, {userName}</Text>
         <Text style={styles.headerSubtitle}>Stay Safe, Stay Connected</Text>
       </LinearGradient>
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
         {activeTab === 'sos' ? (
           <View style={{ gap: 14 }}>
-            <Card>
-              <View style={styles.rowBetween}>
-                <View>
-                  <Text style={styles.label}>Your Anonymous ID</Text>
-                  <Text style={styles.mono}>{userId}</Text>
-                </View>
-                <Badge label="Protected" tone="success" />
-              </View>
-            </Card>
-
             <Card style={{ gap: 12 }}>
               <Text style={styles.title}>Describe Your Emergency</Text>
               <TextInput
@@ -110,57 +108,47 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
                 style={styles.textArea}
               />
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPressIn={() => startRecording('general')}
-                  onPressOut={stopAndTranscribe}
-                  style={[styles.voiceButton, isRecording ? styles.voiceButtonActive : null]}
-                >
-                  <Text style={[styles.voiceButtonText, isRecording ? styles.voiceButtonTextActive : null]}>
-                    {isRecording ? 'Release to stop' : 'Hold for voice'}
-                  </Text>
-                </TouchableOpacity>
                 <PrimaryButton
-                  label="Send Alert"
-                  onPress={() => triggerSend('general')}
-                  disabled={!incidentMessage.trim()}
+                  label={isRecording ? 'Tap to stop' : 'Voice Input'}
+                  variant="outline"
+                  onPress={handleVoiceButton}
                   style={{ flex: 1 }}
                 />
               </View>
-            </Card>
-
-            <Card>
-              <View style={styles.rowBetween}>
-                <View>
-                  <Text style={styles.title}>Quick SOS</Text>
-                  <Text style={styles.caption}>Tap to send. Hold to record voice.</Text>
-                </View>
-              </View>
-              <View style={styles.grid}>
-                {emergencyTypes.map((type) => (
+              <View style={styles.quickGrid}>
+                {[
+                  { label: 'Medical', type: 'medical', color: '#fee2e2' },
+                  { label: 'Security', type: 'security', color: '#dbeafe' },
+                  { label: 'Harassment', type: 'harassment', color: '#ffedd5' },
+                  { label: 'Accident', type: 'accident', color: '#ede9fe' },
+                ].map((item) => (
                   <TouchableOpacity
-                    key={type.id}
+                    key={item.type}
                     activeOpacity={0.9}
-                    onPressIn={() => startRecording(type.id)}
-                    onPressOut={stopAndTranscribe}
-                    style={[styles.sosButton, { backgroundColor: type.color }, recordingType === type.id && isRecording ? styles.sosButtonActive : null]}
+                    style={[styles.quickCard, { backgroundColor: item.color }]}
+                    onPress={() => triggerSend(item.type)}
                   >
-                    <Text style={styles.sosLabel}>{type.label}</Text>
-                    <Text style={styles.sosCaption}>{recordingType === type.id && isRecording ? 'Recording...' : 'Tap or hold'}</Text>
+                    <Text style={styles.quickLabel}>{item.label}</Text>
+                    <Text style={styles.quickCaption}>Tap to send</Text>
                   </TouchableOpacity>
                 ))}
               </View>
               {isRecording ? (
                 <View style={styles.recordingBanner}>
-                  <Text style={styles.recordingText}>Recording... release to send</Text>
+                  <Text style={styles.recordingText}>Listening...</Text>
                 </View>
               ) : null}
               {isUploading ? (
                 <View style={styles.recordingBanner}>
-                  <Text style={styles.recordingText}>Processing voice...</Text>
+                  <Text style={styles.recordingText}>Processing...</Text>
                 </View>
               ) : null}
             </Card>
+
+            <TouchableOpacity style={styles.sosCircle} activeOpacity={0.9} onPress={handleSos}>
+              <Text style={styles.sosCircleText}>SOS</Text>
+              <Text style={styles.sosCircleSub}>Tap to send</Text>
+            </TouchableOpacity>
 
             <Card>
               <Text style={styles.title}>Emergency Contacts</Text>
@@ -334,6 +322,30 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     marginTop: 6,
   },
+  sosCircle: {
+    alignSelf: 'center',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  sosCircleText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 28,
+  },
+  sosCircleSub: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+  },
   recordingBanner: {
     marginTop: 12,
     backgroundColor: '#fee2e2',
@@ -345,27 +357,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '700',
   },
-  voiceButton: {
-    flex: 1,
-    borderWidth: 1.5,
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  quickCard: {
+    flexBasis: '48%',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f8fafc',
   },
-  voiceButtonActive: {
-    borderColor: colors.secondary,
-    backgroundColor: '#fff1f2',
-  },
-  voiceButtonText: {
+  quickLabel: {
     fontWeight: '700',
     color: colors.text,
   },
-  voiceButtonTextActive: {
-    color: colors.secondary,
+  quickCaption: {
+    color: colors.muted,
+    marginTop: 4,
+    fontSize: 12,
   },
   contactRow: {
     flexDirection: 'row',

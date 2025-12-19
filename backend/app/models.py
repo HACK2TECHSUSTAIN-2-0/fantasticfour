@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
+from zoneinfo import ZoneInfo
 import enum
 
 class Role(str, enum.Enum):
@@ -22,8 +23,10 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    # Frontend logic: user001. We can just store 1, 2, 3 and format it in schema if needed
     name = Column(String, index=True)
+    email = Column(String, unique=True, index=True)
+    phone = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=True)
 
 class AuthorityMember(Base):
     __tablename__ = "authority_members"
@@ -42,6 +45,10 @@ class Incident(Base):
     type = Column(String)
     message = Column(String)
     is_voice = Column(Boolean, default=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    # Store timestamps in Asia/Kolkata (IST)
+    timestamp = Column(DateTime, default=lambda: datetime.datetime.now(ZoneInfo("Asia/Kolkata")))
     status = Column(String, default="pending") 
     authority = Column(String)
+    final_severity = Column(String, nullable=True)
+    officer_message = Column(String, nullable=True)
+    reasoning = Column(String, nullable=True)

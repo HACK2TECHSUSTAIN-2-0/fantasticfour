@@ -8,6 +8,8 @@ export type AppState =
 export interface User {
   id: string;
   name: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface AuthorityMember {
@@ -29,4 +31,6 @@ export interface Incident {
   officer_message?: string;
   final_severity?: string;
   reasoning?: string;
+  user_name?: string;
+  user_phone?: string;
 }

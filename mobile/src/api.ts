@@ -75,6 +75,8 @@ export async function fetchIncidents(): Promise<Incident[]> {
     officer_message: i.officer_message,
     final_severity: i.final_severity,
     reasoning: i.reasoning,
+    user_name: i.user_name,
+    user_phone: i.user_phone,
   }));
 }
 
@@ -161,4 +163,24 @@ export async function uploadSpeechToEnglish(audioUri: string, sourceLang = 'auto
 
 export function getApiBaseUrl() {
   return API_URL;
+}
+
+export async function loginUser(email: string, password: string): Promise<User> {
+  const res = await fetch(`${API_URL}/users/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await handleResponse<any>(res);
+  return { id: String(data.id), name: data.name, email: data.email, phone: data.phone };
+}
+
+export async function registerUser(name: string, email: string, password: string, phone: string): Promise<User> {
+  const res = await fetch(`${API_URL}/users/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password, phone }),
+  });
+  const data = await handleResponse<any>(res);
+  return { id: String(data.id), name: data.name, email: data.email };
 }

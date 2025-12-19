@@ -4,19 +4,43 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 
 interface LoginPageProps {
-  onLogin: (userType: 'user' | 'authority', email?: string, password?: string) => void;
+  onLogin: (
+    userType: 'user' | 'authority',
+    email?: string,
+    password?: string,
+    name?: string,
+    mode?: 'login' | 'register',
+    phone?: string
+  ) => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [selectedType, setSelectedType] = useState<'user' | 'authority' | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [userMode, setUserMode] = useState<'login' | 'register'>('login');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedType === 'user') {
-      // Users don't need email/password - just generate ID
-      onLogin('user');
+    if (selectedType === 'user' && email && password) {
+      if (userMode === 'register') {
+        if (!name) {
+          alert('Please provide your full name');
+          return;
+        }
+        if (!phone) {
+          alert('Please provide your mobile number');
+          return;
+        }
+        if (password !== confirmPassword) {
+          alert('Passwords do not match');
+          return;
+        }
+      }
+      onLogin('user', email, password, userMode === 'register' ? name : undefined, userMode, userMode === 'register' ? phone : undefined);
     } else if (selectedType === 'authority' && email && password) {
       onLogin('authority', email, password);
     }
@@ -102,14 +126,102 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                     required
                   />
                 </div>
+                {userMode === 'register' && (
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      type="password"
+                      placeholder="Confirm Password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="pl-11 h-12 rounded-xl"
+                      required
+                    />
+                  </div>
+                )}
               </>
             )}
 
             {selectedType === 'user' && (
-              <div className="p-4 bg-blue-50 rounded-xl text-center text-sm text-blue-800">
-                <p className="mb-2">Privacy-First Access</p>
-                <p className="text-xs">Click continue to get your unique anonymous ID. No personal information required.</p>
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUserMode('login')}
+                    className={`py-2 rounded-xl border ${userMode === 'login' ? 'border-purple-500 text-purple-600' : 'border-gray-200 text-gray-600'}`}
+                  >
+                    Login
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUserMode('register')}
+                    className={`py-2 rounded-xl border ${userMode === 'register' ? 'border-purple-500 text-purple-600' : 'border-gray-200 text-gray-600'}`}
+                  >
+                    Register
+                  </button>
+                </div>
+                {userMode === 'register' && (
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Full name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="pl-11 h-12 rounded-xl"
+                      required
+                    />
+                  </div>
+                )}
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-11 h-12 rounded-xl"
+                    required
+                  />
+                </div>
+                {userMode === 'register' && (
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      type="tel"
+                      placeholder="Mobile number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="pl-11 h-12 rounded-xl"
+                      required
+                    />
+                  </div>
+                )}
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-11 h-12 rounded-xl"
+                    required
+                  />
+                </div>
+                {userMode === 'register' && (
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      type="password"
+                      placeholder="Confirm Password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="pl-11 h-12 rounded-xl"
+                      required
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             <Button
@@ -117,7 +229,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               disabled={!selectedType}
               className="w-full h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
             >
-              {selectedType === 'user' ? 'Continue' : 'Sign In'}
+              Sign In
             </Button>
           </form>
         </div>

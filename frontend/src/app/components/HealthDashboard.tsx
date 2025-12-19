@@ -17,6 +17,8 @@ interface Incident {
   officer_message?: string;
   final_severity?: string;
   reasoning?: string;
+  user_name?: string;
+  user_phone?: string;
 }
 
 interface HealthDashboardProps {
@@ -28,8 +30,12 @@ interface HealthDashboardProps {
 }
 
 export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus }: HealthDashboardProps) {
+  const now = new Date().toLocaleString();
   // Local state for UI only, logic handled by polling in App.tsx
   const activeIncidents = incidents.filter(i => i.status !== 'resolved');
+  const highCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'high').length;
+  const mediumCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'medium').length;
+  const lowCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'low').length;
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -59,7 +65,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div>
             <h1>Health Services Dashboard</h1>
-            <p className="text-white/80 text-sm">Medical Emergency Response</p>
+            <p className="text-white/80 text-sm">Medical Emergency Response • {now}</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right mr-4">
@@ -78,7 +84,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card className="p-6 bg-white rounded-2xl shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -92,11 +98,27 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm mb-1">Critical</p>
-                <div className="text-red-500">
-                  {incidents.filter(i => i.final_severity === 'HIGH').length}
-                </div>
+                <div className="text-red-500">{highCount}</div>
               </div>
               <Activity className="w-8 h-8 text-red-500" />
+            </div>
+          </Card>
+          <Card className="p-6 bg-white rounded-2xl shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm mb-1">Medium</p>
+                <div className="text-yellow-500">{mediumCount}</div>
+              </div>
+              <Ambulance className="w-8 h-8 text-yellow-500" />
+            </div>
+          </Card>
+          <Card className="p-6 bg-white rounded-2xl shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm mb-1">Low</p>
+                <div className="text-green-500">{lowCount}</div>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
           </Card>
           <Card className="p-6 bg-white rounded-2xl shadow-sm">
@@ -113,7 +135,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
           <Card className="p-6 bg-white rounded-2xl shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm mb-1">Resolved Today</p>
+                <p className="text-gray-600 text-sm mb-1">Resolved</p>
                 <div className="text-green-500">{resolvedIncidents.length}</div>
               </div>
               <CheckCircle className="w-8 h-8 text-green-500" />
@@ -179,7 +201,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                           </div>
                           <div className="flex items-center">
                             <User className="w-4 h-4 mr-1" />
-                            {incident.userId}
+                            {incident.user_name ? `${incident.user_name}${incident.user_phone ? ` (${incident.user_phone})` : ''}` : incident.userId}
                           </div>
                         </div>
                       </div>

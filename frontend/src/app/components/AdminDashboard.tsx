@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, Users, Activity, Shield, LogOut, Settings, Bell, TrendingUp, Trash2 } from 'lucide-react';
+import { UserPlus, Users, Activity, Shield, LogOut, Settings, Bell, TrendingUp, Trash2, AlertCircle, Clock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -20,6 +20,8 @@ interface Incident {
   officer_message?: string;
   final_severity?: string;
   reasoning?: string;
+  user_name?: string;
+  user_phone?: string;
 }
 
 interface AdminDashboardProps {
@@ -40,6 +42,10 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberPassword, setNewMemberPassword] = useState('');
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
+  const now = new Date().toLocaleString();
+  const highCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'high').length;
+  const mediumCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'medium').length;
+  const lowCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'low').length;
 
   // ... (rest of state logic is same, ignoring it in replace as I can't match it easily if not careful)
   // Instead, I'll update the Stats and then later add the card.
@@ -68,8 +74,10 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
   const stats = [
     { label: 'Total Users', value: users.length.toString(), icon: Users, color: 'text-blue-500' },
     { label: 'Active Incidents', value: incidents.filter(i => i.status !== 'resolved').length.toString(), icon: Bell, color: 'text-red-500' },
-    { label: 'Health Staff', value: members.filter(m => m.role === 'health').length.toString(), icon: Activity, color: 'text-pink-500' },
-    { label: 'Security Staff', value: members.filter(m => m.role === 'security').length.toString(), icon: Shield, color: 'text-orange-500' },
+    { label: 'High Severity', value: highCount.toString(), icon: AlertCircle, color: 'text-red-600' },
+    { label: 'Medium Severity', value: mediumCount.toString(), icon: Clock, color: 'text-yellow-600' },
+    { label: 'Low Severity', value: lowCount.toString(), icon: Users, color: 'text-green-600' },
+    { label: 'Team Members', value: members.length.toString(), icon: Activity, color: 'text-indigo-600' },
   ];
 
   return (
@@ -85,6 +93,7 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
             <div className="text-right mr-4">
               <div className="text-sm">{adminName}</div>
               <p className="text-xs text-white/70">Admin ID: {adminId}</p>
+              <p className="text-xs text-white/60">Now: {now}</p>
             </div>
             <button
               onClick={onLogout}
@@ -98,7 +107,7 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {stats.map((stat, index) => (
             <Card key={index} className="p-6 bg-white rounded-2xl shadow-sm">
               <div className="flex items-center justify-between">
@@ -271,7 +280,10 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
         {/* Active Campus Incidents */}
         <Card className="p-6 bg-white rounded-2xl shadow-sm">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Active Campus Incidents</h2>
+            <div className="flex flex-col">
+              <h2 className="text-xl font-bold">Active Campus Incidents</h2>
+              <span className="text-xs text-gray-500">Updated: {now}</span>
+            </div>
             <div className="flex items-center gap-2">
               <span className="flex h-3 w-3 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -302,7 +314,10 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <span>ID: {incident.id}</span>
                           <span>•</span>
-                          <span>User: {incident.userId}</span>
+                          <span>
+                            User: {incident.user_name ? incident.user_name : `#${incident.userId}`}
+                            {incident.user_phone ? ` (${incident.user_phone})` : ''}
+                          </span>
                         </div>
                       </div>
                     </div>

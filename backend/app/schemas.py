@@ -5,15 +5,23 @@ from datetime import datetime
 # User Schemas
 class UserBase(BaseModel):
     name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
 
 class UserCreate(UserBase):
-    pass
+    email: str
+    phone: str
+    password: str
 
 class User(UserBase):
     id: int # Backend uses int, frontend handles string formatting or we adapt
     
     class Config:
         from_attributes = True
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
 
 # Authority Member Schemas 
 class AuthorityMemberBase(BaseModel):
@@ -49,6 +57,11 @@ class Incident(IncidentBase):
     user_id: int
     timestamp: datetime
     status: str
+    user_name: Optional[str] = None
+    user_phone: Optional[str] = None
+    final_severity: Optional[str] = None
+    officer_message: Optional[str] = None
+    reasoning: Optional[str] = None
 
     class Config:
         from_attributes = True

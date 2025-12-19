@@ -41,6 +41,8 @@ interface Incident {
   officer_message?: string;
   final_severity?: string;
   reasoning?: string;
+  user_name?: string;
+  user_phone?: string;
 }
 
 export default function App() {
@@ -68,7 +70,16 @@ export default function App() {
       const incRes = await fetch(`${API_URL}/incidents/`);
       if (incRes.ok) {
         const incData = await incRes.json();
-        setIncidents(incData.map((i: any) => ({ ...i, id: String(i.id), userId: String(i.user_id), authority: i.authority })));
+        setIncidents(
+          incData.map((i: any) => ({
+            ...i,
+            id: String(i.id),
+            userId: String(i.user_id),
+            authority: i.authority,
+            user_name: i.user_name,
+            user_phone: i.user_phone,
+          }))
+        );
       }
     } catch (error) {
       console.error("Failed to fetch data", error);
@@ -106,33 +117,57 @@ export default function App() {
     }
   }, [appState]);
 
-  const handleLogin = async (userType: 'user' | 'authority', email?: string, password?: string) => {
-    if (userType === 'user') {
+  const handleLogin = async (
+    userType: 'user' | 'authority',
+    email?: string,
+    password?: string,
+    name?: string,
+    mode: 'login' | 'register' = 'login',
+    phone?: string
+  ) => {
+    if (userType === 'user' && email && password) {
       try {
-        const res = await fetch(`${API_URL}/users/`, {
+        if (mode === 'register') {
+          if (!name || !phone) {
+            toast.error('Name and phone are required to register');
+            return;
+          }
+          const regRes = await fetch(`${API_URL}/users/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, name, phone })
+          });
+          if (!regRes.ok) {
+            const err = await regRes.json().catch(() => ({}));
+            toast.error(err.detail || 'Registration failed');
+            return;
+          }
+          toast.success('Registered! Logging you in...');
+        }
+
+        const res = await fetch(`${API_URL}/users/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: `User` }) // Default name
+          body: JSON.stringify({ email, password })
         });
 
         if (res.ok) {
-          const newUser = await res.json();
-          const userIdStr = String(newUser.id);
-
+          const data = await res.json();
+          const userIdStr = String(data.id);
           setAppState({
             screen: 'user-dashboard',
             userId: userIdStr,
-            userName: newUser.name
+            userName: data.name
           });
-          toast.success(`Welcome! Your ID: ${userIdStr}`);
+          toast.success(`Welcome ${data.name}`);
         } else {
-          toast.error("Failed to create user");
+          toast.error("Invalid user credentials");
         }
       } catch (err) {
-        toast.error("Connection error");
+        toast.error("Login failed");
         console.error(err);
       }
-    } else if (email && password) {
+    } else if (userType === 'authority' && email && password) {
       try {
         const res = await fetch(`${API_URL}/auth/login`, {
           method: 'POST',
@@ -142,8 +177,6 @@ export default function App() {
 
         if (res.ok) {
           const data = await res.json();
-          // data matches {id, name, email, role}
-
           switch (data.role) {
             case 'admin':
               setAppState({

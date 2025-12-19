@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, SafeAreaView, StatusBar, View } from 'react-native';
 import {
   addAuthorityMember,
-  createAnonymousUser,
   createIncident,
   deleteUser,
   fetchAuthorityMembers,
@@ -11,6 +10,8 @@ import {
   getApiBaseUrl,
   loginAuthority,
   updateIncidentStatus,
+  loginUser,
+  registerUser,
 } from './src/api';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { UserDashboard } from './src/screens/UserDashboard';
@@ -69,14 +70,29 @@ export default function App() {
     return () => clearInterval(interval);
   }, [appState.screen, refreshData]);
 
-  const handleLogin = async (userType: 'user' | 'authority', email?: string, password?: string) => {
+  const handleLogin = async (
+    userType: 'user' | 'authority',
+    email?: string,
+    password?: string,
+    name?: string,
+    mode: 'login' | 'register' = 'login',
+    phone?: string
+  ) => {
     try {
       setLoading(true);
-      if (userType === 'user') {
-        const newUser = await createAnonymousUser('User');
-        setAppState({ screen: 'user-dashboard', userId: newUser.id, userName: newUser.name });
-        Alert.alert('Welcome!', `Your ID: ${newUser.id}`);
-      } else if (email && password) {
+      if (userType === 'user' && email && password) {
+        if (mode === 'register') {
+          if (!name || !phone) {
+            Alert.alert('Missing info', 'Name and phone are required to register');
+            setLoading(false);
+            return;
+          }
+          await registerUser(name, email, password, phone);
+        }
+        const user = await loginUser(email, password);
+        setAppState({ screen: 'user-dashboard', userId: user.id, userName: user.name });
+        Alert.alert('Welcome!', `Hello ${user.name}`);
+      } else if (userType === 'authority' && email && password) {
         const member = await loginAuthority(email, password);
         switch (member.role) {
           case 'admin':
