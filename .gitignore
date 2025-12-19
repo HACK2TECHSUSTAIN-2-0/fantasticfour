@@ -62,6 +62,7 @@ frontend/dist/
 frontend/build/
 frontend/coverage/
 
+mobile/.env
 # Vite
 *.tsbuildinfo
 

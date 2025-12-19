@@ -2,12 +2,21 @@ from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from . import crud, models, schemas
 from .database import SessionLocal, engine, get_db
 # Import enrichment logic
 from .llm.enrichment import enrich_alert
 
 models.Base.metadata.create_all(bind=engine)
+
+
+def ensure_incident_columns():
+  """Add enrichment columns if the DB was created before they existed."""
+  with engine.begin() as conn:
+      conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS final_severity VARCHAR"))
+      conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS officer_message VARCHAR"))
+      conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS reasoning VARCHAR"))
 
 app = FastAPI()
 
@@ -35,6 +44,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_db_client():
+    # Ensure newer columns exist (for older databases without migrations)
+    ensure_incident_columns()
     # Create default admin if not exists
     db = SessionLocal()
     try:
