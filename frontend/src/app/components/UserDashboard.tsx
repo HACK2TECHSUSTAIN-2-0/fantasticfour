@@ -17,7 +17,7 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
   const [isRecording, setIsRecording] = useState(false);
   const [recordingType, setRecordingType] = useState<string | null>(null);
 
-  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressThreshold = 3000; // 3 seconds
 
   const handleSendIncident = (type: string, overrideMsg?: string) => {
