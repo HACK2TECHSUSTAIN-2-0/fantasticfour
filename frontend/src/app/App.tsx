@@ -80,9 +80,9 @@ export default function App() {
     }
   }, [appState.screen]);
 
-  // Restore session from localStorage on mount
+  // Restore session from sessionStorage on mount
   useEffect(() => {
-    const savedState = localStorage.getItem('fantasticfour_session');
+    const savedState = sessionStorage.getItem('fantasticfour_session');
     if (savedState) {
       try {
         const parsedState = JSON.parse(savedState);
@@ -93,12 +93,12 @@ export default function App() {
     }
   }, []);
 
-  // Save session to localStorage when appState changes
+  // Save session to sessionStorage when appState changes
   useEffect(() => {
     if (appState.screen !== 'login') {
-      localStorage.setItem('fantasticfour_session', JSON.stringify(appState));
+      sessionStorage.setItem('fantasticfour_session', JSON.stringify(appState));
     } else {
-      localStorage.removeItem('fantasticfour_session');
+      sessionStorage.removeItem('fantasticfour_session');
     }
   }, [appState]);
 
