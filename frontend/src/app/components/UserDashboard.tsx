@@ -16,14 +16,18 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
   const [incidentMessage, setIncidentMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingType, setRecordingType] = useState<string | null>(null);
-  
+
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const longPressThreshold = 3000; // 3 seconds
 
-  const handleSendIncident = (type: string) => {
-    if (incidentMessage.trim()) {
-      onSendIncident(type, incidentMessage, false);
-      setIncidentMessage('');
+  const handleSendIncident = (type: string, overrideMsg?: string) => {
+    const msg = overrideMsg || incidentMessage.trim();
+    if (msg) {
+      onSendIncident(type, msg, false);
+      if (!overrideMsg) setIncidentMessage('');
+    } else if (type !== 'general') {
+      // SOS Button clicked with empty text -> Send generic SOS
+      onSendIncident(type, `SOS: ${type.toUpperCase()} ALERT`, false);
     }
   };
 
@@ -45,7 +49,7 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
     if (pressTimerRef.current) {
       clearTimeout(pressTimerRef.current);
     }
-    
+
     if (isRecording && recordingType) {
       // Stop recording and send
       console.log('Stopped voice recording for:', recordingType);
@@ -141,9 +145,8 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
                     onMouseLeave={handleMouseLeave}
                     onTouchStart={() => handleMouseDown(type.id)}
                     onTouchEnd={handleMouseUp}
-                    className={`${type.color} text-white p-6 rounded-2xl hover:opacity-90 transition-all flex flex-col items-center justify-center relative ${
-                      isRecording && recordingType === type.id ? 'animate-pulse ring-4 ring-white' : ''
-                    }`}
+                    className={`${type.color} text-white p-6 rounded-2xl hover:opacity-90 transition-all flex flex-col items-center justify-center relative ${isRecording && recordingType === type.id ? 'animate-pulse ring-4 ring-white' : ''
+                      }`}
                   >
                     <type.icon className="w-8 h-8 mb-2" />
                     <span className="text-center">{type.label}</span>
@@ -264,27 +267,24 @@ export function UserDashboard({ userId, userName, onSendIncident }: UserDashboar
         <div className="max-w-4xl mx-auto flex justify-around">
           <button
             onClick={() => setActiveTab('sos')}
-            className={`flex flex-col items-center ${
-              activeTab === 'sos' ? 'text-pink-500' : 'text-gray-400'
-            }`}
+            className={`flex flex-col items-center ${activeTab === 'sos' ? 'text-pink-500' : 'text-gray-400'
+              }`}
           >
             <AlertCircle className="w-6 h-6 mb-1" />
             <span className="text-xs">SOS</span>
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center ${
-              activeTab === 'history' ? 'text-pink-500' : 'text-gray-400'
-            }`}
+            className={`flex flex-col items-center ${activeTab === 'history' ? 'text-pink-500' : 'text-gray-400'
+              }`}
           >
             <Clock className="w-6 h-6 mb-1" />
             <span className="text-xs">History</span>
           </button>
           <button
             onClick={() => setActiveTab('profile')}
-            className={`flex flex-col items-center ${
-              activeTab === 'profile' ? 'text-pink-500' : 'text-gray-400'
-            }`}
+            className={`flex flex-col items-center ${activeTab === 'profile' ? 'text-pink-500' : 'text-gray-400'
+              }`}
           >
             <User className="w-6 h-6 mb-1" />
             <span className="text-xs">Profile</span>

@@ -7,7 +7,7 @@ import { SecurityDashboard } from './components/SecurityDashboard';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'http://127.0.0.1:8000';
 
 type AppState =
   | { screen: 'login' }
@@ -37,6 +37,10 @@ interface Incident {
   timestamp: string;
   status: 'pending' | 'responding' | 'resolved';
   authority: 'health' | 'security';
+  // LLM Enrichment
+  officer_message?: string;
+  final_severity?: string;
+  reasoning?: string;
 }
 
 export default function App() {
@@ -208,6 +212,27 @@ export default function App() {
     }
   };
 
+  const handleUpdateIncidentStatus = async (id: string, status: 'responding' | 'resolved') => {
+    try {
+      // Backend needs an endpoint for this, we'll assume /incidents/{id}/status for now or just generic update
+      // Creating simple endpoint in backend next step.
+      const res = await fetch(`${API_URL}/incidents/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+
+      if (res.ok) {
+        toast.success(`Incident marked as ${status}`);
+        refreshData();
+      } else {
+        toast.error("Failed to update status");
+      }
+    } catch {
+      toast.error("Network error");
+    }
+  };
+
   const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean) => {
     let authority: 'health' | 'security' = 'security';
     if (type === 'medical' || type === 'accident') {
@@ -274,6 +299,7 @@ export default function App() {
             id: String(u.id),
             name: u.name
           }))}
+          incidents={incidents}
         />
       )}
 
@@ -282,6 +308,8 @@ export default function App() {
           staffId={appState.staffId}
           staffName={appState.staffName}
           onLogout={handleLogout}
+          incidents={incidents.filter(i => i.authority === 'health')}
+          onUpdateStatus={handleUpdateIncidentStatus}
         />
       )}
 
@@ -290,6 +318,8 @@ export default function App() {
           staffId={appState.staffId}
           staffName={appState.staffName}
           onLogout={handleLogout}
+          incidents={incidents.filter(i => i.authority === 'security')}
+          onUpdateStatus={handleUpdateIncidentStatus}
         />
       )}
 

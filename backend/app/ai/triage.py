@@ -9,6 +9,11 @@ from app.ai.no_risk import is_no_risk
 def classify_incident(text: str):
     text_l = text.lower()
 
+    # Semantic Analysis (Always run for logging)
+    semantic_category, similarity = semantic_classify(text_l)
+    print(f"\n[Sentence Transformer] Input: '{text}'")
+    print(f"[Sentence Transformer] Output: Category='{semantic_category}', Score={similarity}\n")
+
     # Keyword classification
     scores = {
         cat: sum(1 for w in words if w in text_l)
@@ -19,8 +24,7 @@ def classify_incident(text: str):
     if scores[keyword_category] > 0:
         return keyword_category, "keyword"
 
-    # Semantic fallback
-    semantic_category, similarity = semantic_classify(text_l)
+    # Semantic fallback usage
     if semantic_category:
         if len(text_l.split()) >= 6 and similarity >= 0.55:
             return semantic_category, f"semantic ({similarity})"

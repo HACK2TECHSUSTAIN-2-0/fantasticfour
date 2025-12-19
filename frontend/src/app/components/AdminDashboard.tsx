@@ -8,6 +8,20 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
+interface Incident {
+  id: string;
+  userId: string;
+  type: string;
+  message: string;
+  isVoice: boolean;
+  timestamp: string;
+  status: 'pending' | 'responding' | 'resolved';
+  authority: 'health' | 'security';
+  officer_message?: string;
+  final_severity?: string;
+  reasoning?: string;
+}
+
 interface AdminDashboardProps {
   adminId: string;
   adminName: string;
@@ -16,9 +30,10 @@ interface AdminDashboardProps {
   onRemoveUser: (userId: string) => void;
   members: Array<{ id: string; name: string; email: string; role: string }>;
   users: Array<{ id: string; name: string }>;
+  incidents: Incident[];
 }
 
-export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRemoveUser, members, users }: AdminDashboardProps) {
+export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRemoveUser, members, users, incidents }: AdminDashboardProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newMemberRole, setNewMemberRole] = useState<'admin' | 'health' | 'security'>('health');
   const [newMemberName, setNewMemberName] = useState('');
@@ -26,6 +41,13 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
   const [newMemberPassword, setNewMemberPassword] = useState('');
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
 
+  // ... (rest of state logic is same, ignoring it in replace as I can't match it easily if not careful)
+  // Instead, I'll update the Stats and then later add the card.
+
+  // Actually, let's just update the signature line in this call, and do a separate call for the JSX.
+  // Wait, I can only target contiguous blocks.
+
+  // Re-strategizing: Update everything from signature down to before `const stats`.
   const handleAddMember = () => {
     if (newMemberName && newMemberEmail && newMemberPassword) {
       onAddMember(newMemberRole, newMemberEmail, newMemberName, newMemberPassword);
@@ -45,7 +67,7 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
 
   const stats = [
     { label: 'Total Users', value: users.length.toString(), icon: Users, color: 'text-blue-500' },
-    { label: 'Active Incidents', value: '3', icon: Bell, color: 'text-red-500' },
+    { label: 'Active Incidents', value: incidents.filter(i => i.status !== 'resolved').length.toString(), icon: Bell, color: 'text-red-500' },
     { label: 'Health Staff', value: members.filter(m => m.role === 'health').length.toString(), icon: Activity, color: 'text-pink-500' },
     { label: 'Security Staff', value: members.filter(m => m.role === 'security').length.toString(), icon: Shield, color: 'text-orange-500' },
   ];
@@ -218,14 +240,13 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
               members.map((member) => (
                 <div key={member.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                   <div className="flex items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${
-                      member.role === 'admin' ? 'bg-purple-100 text-purple-600' :
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${member.role === 'admin' ? 'bg-purple-100 text-purple-600' :
                       member.role === 'health' ? 'bg-red-100 text-red-600' :
-                      'bg-orange-100 text-orange-600'
-                    }`}>
+                        'bg-orange-100 text-orange-600'
+                      }`}>
                       {member.role === 'admin' ? <UserPlus className="w-5 h-5" /> :
-                       member.role === 'health' ? <Activity className="w-5 h-5" /> :
-                       <Shield className="w-5 h-5" />}
+                        member.role === 'health' ? <Activity className="w-5 h-5" /> :
+                          <Shield className="w-5 h-5" />}
                     </div>
                     <div>
                       <div>{member.name}</div>
@@ -233,11 +254,10 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-sm px-3 py-1 rounded-full inline-block ${
-                      member.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                    <div className={`text-sm px-3 py-1 rounded-full inline-block ${member.role === 'admin' ? 'bg-purple-100 text-purple-700' :
                       member.role === 'health' ? 'bg-red-100 text-red-700' :
-                      'bg-orange-100 text-orange-700'
-                    }`}>
+                        'bg-orange-100 text-orange-700'
+                      }`}>
                       {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">ID: {member.id}</p>
@@ -248,26 +268,85 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
           </div>
         </Card>
 
-        {/* Recent Activity */}
+        {/* Active Campus Incidents */}
         <Card className="p-6 bg-white rounded-2xl shadow-sm">
-          <h2 className="mb-4">Recent Activity</h2>
-          <div className="space-y-3">
-            <div className="flex items-start p-3 bg-blue-50 rounded-xl">
-              <Bell className="w-5 h-5 text-blue-500 mr-3 mt-0.5" />
-              <div className="flex-1">
-                <div className="text-sm">New SOS Alert Received</div>
-                <p className="text-xs text-gray-600">Medical emergency reported in Building A</p>
-                <p className="text-xs text-gray-500 mt-1">2 minutes ago</p>
-              </div>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold">Active Campus Incidents</h2>
+            <div className="flex items-center gap-2">
+              <span className="flex h-3 w-3 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              </span>
+              <span className="text-sm text-gray-500">Live Updates</span>
             </div>
-            <div className="flex items-start p-3 bg-green-50 rounded-xl">
-              <UserPlus className="w-5 h-5 text-green-500 mr-3 mt-0.5" />
-              <div className="flex-1">
-                <div className="text-sm">New User Registered</div>
-                <p className="text-xs text-gray-600">User joined Campus Safety network</p>
-                <p className="text-xs text-gray-500 mt-1">15 minutes ago</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {incidents.filter(i => i.status !== 'resolved').length === 0 ? (
+              <div className="p-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <Shield className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 font-medium">No active incidents</p>
+                <p className="text-sm text-gray-400">All systems operational</p>
               </div>
-            </div>
+            ) : (
+              incidents.filter(i => i.status !== 'resolved').map((incident) => (
+                <div key={incident.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${incident.authority === 'health' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
+                        }`}>
+                        {incident.authority === 'health' ? <Activity className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{incident.type}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <span>ID: {incident.id}</span>
+                          <span>•</span>
+                          <span>User: {incident.userId}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${incident.status === 'responding' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                        {incident.status.toUpperCase()}
+                      </span>
+                      {incident.final_severity && (
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium text-white ${incident.final_severity === 'HIGH' || incident.final_severity === 'critical' ? 'bg-red-500' : 'bg-yellow-500'
+                          }`}>
+                          {incident.final_severity}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                    <p className="text-gray-700 mb-2"><strong>Report:</strong> {incident.message} {incident.isVoice && "(Voice)"}</p>
+                    {incident.officer_message && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-sm text-blue-700">
+                          <strong className="flex items-center gap-1"><Shield className="w-3 h-3" /> Officer Guidance (AI):</strong> {incident.officer_message}
+                        </p>
+                      </div>
+                    )}
+                    {incident.reasoning && (
+                      <p className="text-xs text-gray-500 mt-1 italic">Analysis: {incident.reasoning}</p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Users className="w-4 h-4 mr-2" />
+                      Contact User
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Activity className="w-4 h-4 mr-2" />
+                      View Location
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </Card>
       </div>

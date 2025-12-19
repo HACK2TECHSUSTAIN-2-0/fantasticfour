@@ -5,62 +5,31 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
+interface Incident {
+  id: string;
+  userId: string;
+  type: string;
+  message: string;
+  isVoice: boolean;
+  timestamp: string;
+  status: 'pending' | 'responding' | 'resolved';
+  authority: 'health' | 'security';
+  officer_message?: string;
+  final_severity?: string;
+  reasoning?: string;
+}
+
 interface HealthDashboardProps {
   staffId: string;
   staffName: string;
   onLogout: () => void;
+  incidents: Incident[];
+  onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
 }
 
-interface MedicalIncident {
-  id: string;
-  type: string;
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  location: string;
-  reportedAt: string;
-  status: 'pending' | 'responding' | 'resolved';
-  userId: string;
-  description: string;
-}
-
-export function HealthDashboard({ staffId, staffName, onLogout }: HealthDashboardProps) {
-  const [incidents, setIncidents] = useState<MedicalIncident[]>([
-    {
-      id: 'MED-001',
-      type: 'Cardiac Emergency',
-      priority: 'critical',
-      location: 'Library Building, 3rd Floor',
-      reportedAt: '2 min ago',
-      status: 'responding',
-      userId: 'USR-1234',
-      description: 'Student collapsed, chest pain reported'
-    },
-    {
-      id: 'MED-002',
-      type: 'Minor Injury',
-      priority: 'medium',
-      location: 'Sports Complex',
-      reportedAt: '15 min ago',
-      status: 'pending',
-      userId: 'USR-5678',
-      description: 'Ankle sprain during basketball game'
-    },
-    {
-      id: 'MED-003',
-      type: 'Allergic Reaction',
-      priority: 'high',
-      location: 'Cafeteria',
-      reportedAt: '5 min ago',
-      status: 'pending',
-      userId: 'USR-9012',
-      description: 'Severe food allergy reaction'
-    }
-  ]);
-
-  const handleStatusChange = (incidentId: string, newStatus: 'pending' | 'responding' | 'resolved') => {
-    setIncidents(incidents.map(inc => 
-      inc.id === incidentId ? { ...inc, status: newStatus } : inc
-    ));
-  };
+export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus }: HealthDashboardProps) {
+  // Local state for UI only, logic handled by polling in App.tsx
+  const activeIncidents = incidents.filter(i => i.status !== 'resolved');
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -81,7 +50,6 @@ export function HealthDashboard({ staffId, staffName, onLogout }: HealthDashboar
     }
   };
 
-  const activeIncidents = incidents.filter(i => i.status !== 'resolved');
   const resolvedIncidents = incidents.filter(i => i.status === 'resolved');
 
   return (
@@ -125,7 +93,7 @@ export function HealthDashboard({ staffId, staffName, onLogout }: HealthDashboar
               <div>
                 <p className="text-gray-600 text-sm mb-1">Critical</p>
                 <div className="text-red-500">
-                  {incidents.filter(i => i.priority === 'critical').length}
+                  {incidents.filter(i => i.final_severity === 'HIGH').length}
                 </div>
               </div>
               <Activity className="w-8 h-8 text-red-500" />
@@ -173,26 +141,41 @@ export function HealthDashboard({ staffId, staffName, onLogout }: HealthDashboar
                 <Card key={incident.id} className="p-6 bg-white rounded-2xl shadow-sm">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-start gap-4">
-                      <div className={`${getPriorityColor(incident.priority)} w-2 h-full rounded-full`} />
+                      <div className={`${incident.final_severity === 'HIGH' ? 'bg-red-500' : 'bg-yellow-500'
+                        } w-2 h-full rounded-full`} />
                       <div>
                         <div className="flex items-center gap-3 mb-2">
                           <h3>{incident.type}</h3>
                           <Badge className={getStatusColor(incident.status)}>
                             {incident.status}
                           </Badge>
-                          <Badge className={`${getPriorityColor(incident.priority)} text-white`}>
-                            {incident.priority}
-                          </Badge>
+                          {incident.final_severity && (
+                            <Badge className={`${incident.final_severity === 'HIGH' ? 'bg-red-500' : 'bg-yellow-500'
+                              } text-white`}>
+                              {incident.final_severity}
+                            </Badge>
+                          )}
                         </div>
-                        <p className="text-gray-600 mb-3">{incident.description}</p>
+
+                        <div className="bg-red-50 p-4 rounded-xl mb-3">
+                          <p className="text-gray-800 font-medium mb-2">{incident.message}</p>
+                          {incident.isVoice && <Badge variant="outline" className="text-xs">Voice Message</Badge>}
+
+                          {incident.officer_message && (
+                            <div className="mt-3 pt-3 border-t border-red-200">
+                              <p className="text-sm text-red-800 font-medium flex items-center gap-2">
+                                <Activity className="w-4 h-4" />
+                                AI Response Guidance:
+                              </p>
+                              <p className="text-sm text-red-900 mt-1">{incident.officer_message}</p>
+                            </div>
+                          )}
+                        </div>
+
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           <div className="flex items-center">
-                            <MapPin className="w-4 h-4 mr-1" />
-                            {incident.location}
-                          </div>
-                          <div className="flex items-center">
                             <Clock className="w-4 h-4 mr-1" />
-                            {incident.reportedAt}
+                            {new Date(incident.timestamp).toLocaleTimeString()}
                           </div>
                           <div className="flex items-center">
                             <User className="w-4 h-4 mr-1" />
@@ -201,34 +184,27 @@ export function HealthDashboard({ staffId, staffName, onLogout }: HealthDashboar
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <Button 
-                        size="sm"
-                        onClick={() => handleStatusChange(incident.id, 'responding')}
-                        className="bg-blue-500 hover:bg-blue-600 rounded-xl"
-                        disabled={incident.status === 'responding'}
+                  </div>
+                  <div className="flex gap-2 pt-4 border-t border-gray-200">
+                    {incident.status === 'pending' && (
+                      <Button
+                        onClick={() => onUpdateStatus(incident.id, 'responding')}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
                       >
                         Respond
                       </Button>
-                      <Button 
-                        size="sm"
-                        onClick={() => handleStatusChange(incident.id, 'resolved')}
-                        className="bg-green-500 hover:bg-green-600 rounded-xl"
-                      >
-                        Resolve
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-4 border-t border-gray-200">
-                    <Button variant="outline" size="sm" className="rounded-xl">
+                    )}
+                    <Button
+                      onClick={() => onUpdateStatus(incident.id, 'resolved')}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl"
+                    >
+                      Resolve
+                    </Button>
+                    <Button variant="outline" size="sm" className="rounded-xl flex-1">
                       <Phone className="w-4 h-4 mr-2" />
-                      Call Patient
+                      Contact User
                     </Button>
-                    <Button variant="outline" size="sm" className="rounded-xl">
-                      <Ambulance className="w-4 h-4 mr-2" />
-                      Dispatch Ambulance
-                    </Button>
-                    <Button variant="outline" size="sm" className="rounded-xl">
+                    <Button variant="outline" size="sm" className="rounded-xl flex-1">
                       <MapPin className="w-4 h-4 mr-2" />
                       View Location
                     </Button>

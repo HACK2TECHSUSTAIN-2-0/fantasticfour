@@ -36,7 +36,7 @@ class LoginRequest(BaseModel):
 
 # Incident Schemas
 class IncidentBase(BaseModel):
-    type: str
+    type: str # This is basically the initial category
     message: str
     is_voice: bool = False
     authority: str
@@ -49,6 +49,11 @@ class Incident(IncidentBase):
     user_id: int
     timestamp: datetime
     status: str
+    
+    # LLM Enrichment Fields
+    final_severity: Optional[str] = None
+    officer_message: Optional[str] = None
+    reasoning: Optional[str] = None
 
     class Config:
         from_attributes = True
