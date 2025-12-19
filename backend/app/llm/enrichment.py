@@ -1,6 +1,6 @@
 import requests
 
-LM_URL = "http://localhost:1234/v1/chat/completions"
+LM_URL = "https://canberra-crown-controlling-tion.trycloudflare.com/v1/chat/completions"
 
 def enrich_alert(payload: dict) -> dict:
     triage = payload["triage"]
