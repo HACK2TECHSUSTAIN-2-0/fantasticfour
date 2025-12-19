@@ -42,7 +42,7 @@ def critical_override(text: str):
     security_triggers = [
         "weapon", "knife", "gun", "firearm",
         "blade", "machete", "pistol", "rifle",
-        "attack", "attacking", "threatening"
+        "attack", "attacking", "threatening","fire"
     ]
 
     if any(k in text for k in security_triggers):

@@ -62,15 +62,5 @@ def create_incident(db: Session, incident: schemas.IncidentCreate):
     db.refresh(db_incident)
     return db_incident
 
-def update_incident_enrichment(db: Session, incident_id: int, final_severity: str, officer_message: str, reasoning: str):
-    db_incident = db.query(models.Incident).filter(models.Incident.id == incident_id).first()
-    if db_incident:
-        db_incident.final_severity = final_severity
-        db_incident.officer_message = officer_message
-        db_incident.reasoning = reasoning
-        db.commit()
-        db.refresh(db_incident)
-    return db_incident
-
 def get_incidents(db: Session):
     return db.query(models.Incident).all()

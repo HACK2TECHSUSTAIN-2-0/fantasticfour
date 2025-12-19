@@ -7,7 +7,7 @@ import requests
 
 
 #ADMIN_ENDPOINT = "https://your-server.com/api/alerts"
-ADMIN_ENDPOINT = "https://1b842dd0d452.ngrok-free.app/alerts"
+ADMIN_ENDPOINT = "http://127.0.0.1:8000/alerts"
 
 def is_internet_available(timeout: int = 2) -> bool:
     try:

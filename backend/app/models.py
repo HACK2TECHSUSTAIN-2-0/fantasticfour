@@ -45,8 +45,3 @@ class Incident(Base):
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     status = Column(String, default="pending") 
     authority = Column(String)
-    
-    # LLM Enrichment Fields
-    final_severity = Column(String, nullable=True)
-    officer_message = Column(String, nullable=True)
-    reasoning = Column(String, nullable=True)
