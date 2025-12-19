@@ -8,7 +8,7 @@ def enrich_alert(payload: dict) -> dict:
     messages = [
         {
             "role": "system",
-            "content": "You help emergency response officers. Be concise and alert authorities."
+            "content": "You give orders emergency response officers. Be concise and alert authorities."
         },
         {
             "role": "user",
