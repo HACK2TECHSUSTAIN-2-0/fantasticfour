@@ -1,7 +1,18 @@
 from app.ai.triage import run_ai_triage
 from app.network.sender import handle_alert
+from app.llm.enrichment import enrich_alert
 
-triage = run_ai_triage("someone is coming behind me", silent=True)
-result = handle_alert(triage)
+# 1. Run triage
+#triage = run_ai_triage("I’m walking in the campus right now and someone has been following me for the last few minutes, I don’t feel safe.", silent=True)
+triage = run_ai_triage("someone following with weapon", silent=True)
+# 2. Send alert
+delivery = handle_alert(triage)
 
-print(result)
+print("\n📡 DELIVERY RESULT")
+print(delivery)
+
+# 3. LLM enrichment (only if delivered)
+if delivery["delivered"]:
+    enrichment = enrich_alert(delivery["payload"])
+    print("\n🔁 LLM ENRICHMENT UPDATE")
+    print(enrichment)
