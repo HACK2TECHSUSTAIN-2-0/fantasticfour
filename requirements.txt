@@ -1,0 +1,13 @@
+# requirements.txt
+
+sentence-transformers
+transformers
+torch
+scikit-learn
+numpy
+scipy
+huggingface-hub
+regex
+tqdm
+uvicorn
+fastapi
