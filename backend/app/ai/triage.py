@@ -37,6 +37,7 @@ def run_ai_triage(text: str, silent: bool):
     # 0. NO_RISK must be first
     if is_no_risk(text):
         return {
+            "user_message": raw,
             "category": "no_risk",
             "severity": "NONE",
             "confidence": 0.05,
@@ -46,6 +47,7 @@ def run_ai_triage(text: str, silent: bool):
     # 1. Explicit negation
     if is_explicit_negation(text):
         return {
+            "user_message": raw,
             "category": "general",
             "severity": "LOW",
             "confidence": 0.2,
@@ -56,6 +58,7 @@ def run_ai_triage(text: str, silent: bool):
     override = critical_override(text)
     if override:
         return {
+            "user_message": raw,
             "category": override["category"],
             "severity": override["force_severity"],
             "confidence": override["force_confidence"],
@@ -63,6 +66,7 @@ def run_ai_triage(text: str, silent: bool):
         }
     if text.strip().isalnum() and len(text.split()) == 1:
         return {
+            "user_message": raw,
             "category": "no_signal",
             "severity": "LOW",
             "confidence": 0.1,
@@ -81,6 +85,7 @@ def run_ai_triage(text: str, silent: bool):
             severity = "MEDIUM"
 
     return {
+        "user_message": raw,
         "category": category,
         "severity": severity,
         "confidence": confidence,

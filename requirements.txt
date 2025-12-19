@@ -9,3 +9,5 @@ scipy
 huggingface-hub
 regex
 tqdm
+uvicorn
+fastapi
