@@ -7,6 +7,74 @@ from sqlalchemy import text
 from . import crud, models, schemas
 from .database import SessionLocal, engine, get_db
 from .llm.enrichment import enrich_alert, classify_authority_llm
+
+# Authority hints for heuristic routing
+MEDICAL_HINTS = {
+    "medical", "medic", "injury", "bleeding", "blood", "unconscious",
+    "breath", "respiratory", "asthma", "fracture", "pain", "ambulance",
+    "heart", "cardiac", "stroke", "seizure", "allergy", "allergic",
+    "fever", "sick", "ill", "doctor", "nurse", "clinic", "hospital", "accident", "wound",
+    "collapse", "faint", "not breathing", "cant breathe", "can't breathe", "stopped breathing"
+}
+SECURITY_HINTS = {
+    "security", "fight", "violence", "weapon", "knife", "gun", "threat",
+    "harassment", "assault", "theft", "steal", "robbery", "intruder",
+    "trespass", "vandal", "suspicious", "kidnap", "abduction", "danger", "riot", "attack", "attacking"
+}
+VALID_AUTH = {"health", "security"}
+
+
+def choose_authority(message: str | None, incident_type: str | None, triage_category: str | None, llm_authority: str | None, requested: str | None) -> str:
+    """
+    Deterministic authority picker.
+    Priority: critical hints -> LLM -> triage category -> keyword counts -> requested -> security fallback.
+    """
+    msg = (message or "").lower()
+
+    def canon(val: str | None) -> str | None:
+        if not val:
+            return None
+        v = val.lower()
+        if v in {"medical", "health"}:
+            return "health"
+        if v in {"security", "harassment", "threat", "violence"}:
+            return "security"
+        return None
+
+    # Keyword counts
+    med_hits = sum(1 for w in MEDICAL_HINTS if w in msg)
+    sec_hits = sum(1 for w in SECURITY_HINTS if w in msg)
+
+    # Incident type bias
+    type_hint = canon(incident_type)
+    if type_hint == "health":
+        med_hits += 1
+    if type_hint == "security":
+        sec_hits += 1
+
+    # LLM authority (if valid) wins
+    llm_auth = canon(llm_authority)
+    if llm_auth:
+        return llm_auth
+
+    # Triage category next
+    triage_auth = canon(triage_category)
+    if triage_auth:
+        return triage_auth
+
+    # Keyword majority
+    if med_hits > sec_hits:
+        return "health"
+    if sec_hits > med_hits:
+        return "security"
+
+    # Requested authority if valid
+    req_auth = canon(requested)
+    if req_auth:
+        return req_auth
+
+    # Fallback
+    return "security"
 from .services.translation import translate_to_english
 from .services.speech import transcribe_to_english
 from .ai.triage import run_ai_triage
@@ -155,7 +223,17 @@ def create_incident(incident: schemas.IncidentCreate, background_tasks: Backgrou
     # Layer 1: edge/keyword/semantic triage
     triage = run_ai_triage(incident.message or incident.type, silent=True)
     llm_authority = classify_authority_llm(incident.message or incident.type)
-    computed_authority = derive_authority(triage.get("category"), llm_authority, incident.authority)
+    computed_authority = choose_authority(
+        message=incident.message,
+        incident_type=incident.type,
+        triage_category=(triage.get("category") or "").lower(),
+        llm_authority=llm_authority,
+        requested=incident.authority,
+    )
+
+    # Debug: log triage classification
+    triage_category = (triage.get("category") or "").lower()
+    print(f"[TRIAGE] category={triage_category} severity={triage.get('severity')} authority={computed_authority} msg={incident.message}")
 
     # Layer 2: Gemini LLM enrichment
     payload = {
@@ -251,44 +329,3 @@ async def speech_to_english(file: UploadFile = File(...), source_lang: str = "au
     if not text:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {err}")
     return schemas.SpeechToTextResponse(translated_text=text, original_text=None)
-def derive_authority(category: str | None, preferred: str | None = None, requested: str | None = None) -> str:
-    """
-    Decide which authority should handle the incident.
-    Order: preferred (LLM) -> category -> client request.
-    Mapping: medical/health/injury/accident => health; harassment/security/threat/violence => security; default security.
-    """
-    def canonical(val: str | None) -> str | None:
-        if not val:
-            return None
-        v = val.lower()
-        if v in {"medical", "health", "injury", "accident"}:
-            return "health"
-        if v in {"harassment", "security", "threat", "violence"}:
-            return "security"
-        return None
-
-    for candidate in (preferred, category, requested):
-        mapped = canonical(candidate)
-        if mapped:
-            return mapped
-
-    cat = (category or "").lower()
-    if cat in {"medical", "health", "injury", "accident"}:
-        return "health"
-    if cat in {"harassment", "security", "threat", "violence"}:
-        return "security"
-    return "security"
-
-    """
-    Decide which authority should handle the incident.
-    - Medical/accident/injury → health
-    - Everything else → security
-    If the client sent 'health' or 'security', we still respect the derived result to avoid misroutes.
-    """
-    cat = (category or "").lower()
-    if cat in {"medical", "health", "injury", "accident"}:
-        return "health"
-    if cat in {"harassment", "security", "threat", "violence"}:
-        return "security"
-    # default fallback if unknown
-    return "security"

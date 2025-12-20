@@ -313,7 +313,7 @@ export default function App() {
       });
 
       if (res.ok) {
-        toast.success('Emergency alert sent!', { description: `Sent to ${authority}` });
+        toast.success('Emergency alert sent!');
         refreshData();
       } else {
         showError("Failed to send alert");

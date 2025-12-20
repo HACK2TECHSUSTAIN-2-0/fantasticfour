@@ -4,7 +4,9 @@
 INCIDENT_KEYWORDS = {
     "medical": [
         "bleeding", "fainted", "unconscious", "injured",
-        "accident", "hurt", "pain"
+        "accident", "hurt", "pain", "ambulance", "doctor", "hospital",
+        "stroke", "seizure", "asthma", "breathing", "not breathing",
+        "chest pain", "cardiac", "heart", "allergic", "allergy", "fever", "sick"
     ],
     "harassment": [
         "following", "stalking", "harassing",
