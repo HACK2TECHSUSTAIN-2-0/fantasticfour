@@ -8,7 +8,7 @@ import { Textarea } from './ui/textarea';
 interface UserDashboardProps {
   userId: string;
   userName: string;
-  onSendIncident: (type: string, message: string, isVoice: boolean) => void;
+  onSendIncident: (type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => void;
   apiBaseUrl: string;
 }
 
@@ -22,6 +22,7 @@ declare global {
 export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: UserDashboardProps) {
   const [activeTab, setActiveTab] = useState<'sos' | 'history' | 'profile'>('sos');
   const [incidentMessage, setIncidentMessage] = useState('');
+  const [coords, setCoords] = useState<{ lat?: number; lng?: number }>({});
 
   const recognitionRef = useRef<any>(null);
 
@@ -46,7 +47,7 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
   const handleSendIncident = (type: string, overrideMsg?: string) => {
     const msg = overrideMsg || incidentMessage.trim();
     if (!msg && type === 'general') return;
-    onSendIncident(type, msg || `SOS: ${type.toUpperCase()} ALERT`, false);
+    onSendIncident(type, msg || `SOS: ${type.toUpperCase()} ALERT`, false, coords.lat, coords.lng);
     if (!overrideMsg) setIncidentMessage('');
   };
 
@@ -76,6 +77,18 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
       handleSendIncident('general', msg);
     }
   };
+
+  // Fetch geolocation once on mount
+  React.useEffect(() => {
+    if (!navigator?.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -13,9 +14,10 @@ interface HealthDashboardProps {
   onLogout: () => void;
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
 }
 
-export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus }: HealthDashboardProps) {
+export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: HealthDashboardProps) {
   const now = new Date().toLocaleString();
   const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
   const resolvedIncidents = incidents.filter((i) => i.status === 'resolved');
@@ -41,10 +43,14 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         }
+        style={{ paddingTop: 100, paddingBottom: 10 }}
       />
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
-        <View style={styles.profileRow}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 160, paddingTop: 28, rowGap: 16 }}
+      >
+        <View style={[styles.profileRow, { marginBottom: 16 }]}>
           <View>
             <Text style={styles.subtle}>Health Staff</Text>
             <Text style={styles.heading}>{staffName}</Text>
@@ -53,7 +59,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
           <Badge label={`${activeIncidents.length} Active`} tone="danger" />
         </View>
 
-        <View style={styles.statGrid}>
+        <View style={[styles.statGrid, { marginBottom: 16 }]}>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Active Cases</Text>
             <Text style={[styles.statValue, { color: '#ef4444' }]}>{activeIncidents.length}</Text>
@@ -80,7 +86,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
           </Card>
         </View>
 
-        <Card style={{ gap: 10 }}>
+        <Card style={{ gap: 14 }}>
           <View style={styles.rowBetween}>
             <Text style={styles.title}>Active Incidents</Text>
             <Badge label={`${activeIncidents.length}`} tone="danger" />
@@ -111,12 +117,74 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                       <Text style={styles.body}>{incident.officer_message}</Text>
                     </View>
                   ) : null}
+                 <View style={styles.priorityRow}>
+                   <Text style={styles.subtle}>Priority</Text>
+                   <View style={styles.priorityButtons}>
+                     {['high', 'medium', 'low'].map((level) => (
+                       <TouchableOpacity
+                         key={level}
+                         style={[
+                           styles.priorityChip,
+                           (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipActive : null,
+                         ]}
+                          onPress={() => onUpdatePriority(incident.id, level as 'high' | 'medium' | 'low')}
+                        >
+                          <Text
+                            style={[
+                              styles.priorityChipText,
+                              (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipTextActive : null,
+                            ]}
+                          >
+                            {level.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                   </View>
+                 </View>
+                  {incident.latitude && incident.longitude ? (
+                    <View style={{ marginTop: 10, gap: 8 }}>
+                      <Text style={styles.subtle}>Lat/Lng: {incident.latitude.toFixed(4)}, {incident.longitude.toFixed(4)}</Text>
+                      <PrimaryButton
+                        label="Street View"
+                        variant="outline"
+                        onPress={() =>
+                          Linking.openURL(`https://www.google.com/maps?q=&layer=c&cbll=${incident.latitude},${incident.longitude}`)
+                        }
+                      />
+                    </View>
+                  ) : (
+                    <View style={{ marginTop: 10 }}>
+                      <PrimaryButton label="Location unavailable" variant="outline" disabled />
+                    </View>
+                  )}
                 </View>
-                <View style={styles.rowBetween}>
+                <View style={styles.actionRow}>
                   {incident.status === 'pending' ? (
-                    <PrimaryButton label="Respond" onPress={() => onUpdateStatus(incident.id, 'responding')} style={{ flex: 1, marginRight: 8 }} />
+                    <PrimaryButton
+                      label="Respond"
+                      onPress={() => onUpdateStatus(incident.id, 'responding')}
+                      style={styles.actionBtn}
+                    />
                   ) : null}
-                  <PrimaryButton label="Resolve" onPress={() => onUpdateStatus(incident.id, 'resolved')} style={{ flex: 1 }} />
+                  <PrimaryButton
+                    label="Resolve"
+                    onPress={() => onUpdateStatus(incident.id, 'resolved')}
+                    style={styles.actionBtn}
+                  />
+                  <PrimaryButton
+                    label="Contact User"
+                    variant="outline"
+                    onPress={() => Linking.openURL(`tel:${incident.user_phone || ''}`)}
+                    style={styles.actionBtn}
+                  />
+                  <PrimaryButton
+                    label="Open in Google Maps"
+                    variant="outline"
+                    onPress={() =>
+                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${incident.latitude || ''},${incident.longitude || ''}`)
+                    }
+                    style={styles.actionBtn}
+                  />
                 </View>
               </View>
             ))
@@ -164,7 +232,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
+    padding: 20,
   },
   profileRow: {
     flexDirection: 'row',
@@ -183,7 +251,7 @@ const styles = StyleSheet.create({
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
   statCard: {
     flexBasis: '48%',
@@ -208,11 +276,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  actionBtn: {
+    flexBasis: '48%',
+    minHeight: 46,
+  },
   incidentCard: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     padding: 12,
+    marginBottom: 12,
     gap: 10,
   },
   messageBox: {
@@ -225,6 +304,32 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
     backgroundColor: '#fef3c7',
+  },
+  priorityRow: {
+    marginTop: 8,
+    gap: 6,
+  },
+  priorityButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  priorityChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  priorityChipActive: {
+    backgroundColor: '#ede9fe',
+    borderColor: '#7c3aed',
+  },
+  priorityChipText: {
+    fontWeight: '700',
+    color: colors.text,
+  },
+  priorityChipTextActive: {
+    color: '#7c3aed',
   },
   triageRow: {
     flexDirection: 'row',

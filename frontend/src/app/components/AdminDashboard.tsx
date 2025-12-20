@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, Users, Activity, Shield, LogOut, Settings, Bell, TrendingUp, Trash2, AlertCircle, Clock } from 'lucide-react';
+import { UserPlus, Users, Activity, Shield, LogOut, Settings, Bell, TrendingUp, Trash2, AlertCircle, Clock, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -33,9 +33,10 @@ interface AdminDashboardProps {
   members: Array<{ id: string; name: string; email: string; role: string }>;
   users: Array<{ id: string; name: string }>;
   incidents: Incident[];
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
 }
 
-export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRemoveUser, members, users, incidents }: AdminDashboardProps) {
+export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRemoveUser, members, users, incidents, onUpdatePriority }: AdminDashboardProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newMemberRole, setNewMemberRole] = useState<'admin' | 'health' | 'security'>('health');
   const [newMemberName, setNewMemberName] = useState('');
@@ -46,12 +47,9 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
   const highCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'high').length;
   const mediumCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'medium').length;
   const lowCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'low').length;
+  const [priorityDraft, setPriorityDraft] = useState<Record<string, string>>({});
 
-  // ... (rest of state logic is same, ignoring it in replace as I can't match it easily if not careful)
-  // Instead, I'll update the Stats and then later add the card.
-
-  // Actually, let's just update the signature line in this call, and do a separate call for the JSX.
-  // Wait, I can only target contiguous blocks.
+  // rest of state logic...
 
   // Re-strategizing: Update everything from signature down to before `const stats`.
   const handleAddMember = () => {
@@ -347,18 +345,105 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                     {incident.reasoning && (
                       <p className="text-xs text-gray-500 mt-1 italic">Analysis: {incident.reasoning}</p>
                     )}
+                    <div className="mt-3">
+                      <label className="text-xs text-gray-600">Priority</label>
+                      <select
+                        className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                        value={(priorityDraft[incident.id] || incident.final_severity || 'low').toLowerCase()}
+                        onChange={(e) =>
+                          setPriorityDraft((prev) => ({ ...prev, [incident.id]: e.target.value }))
+                        }
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 rounded-xl"
+                        onClick={() =>
+                          onUpdatePriority(
+                            incident.id,
+                            ((priorityDraft[incident.id] || incident.final_severity || 'low') as 'low' | 'medium' | 'high')
+                          )
+                        }
+                      >
+                        Change Priority
+                      </Button>
+                    </div>
+                    {incident.latitude && incident.longitude && (
+                      <div className="mt-3 space-y-2">
+                        <div className="text-sm text-gray-600">Location:</div>
+                      <div className="w-full h-56 rounded-xl overflow-hidden border border-gray-200 pointer-events-none">
+                        <iframe
+                          title={`map-${incident.id}`}
+                          src={`https://www.google.com/maps?q=${incident.latitude},${incident.longitude}&z=15&output=embed`}
+                          className="w-full h-full"
+                          allowFullScreen
+                          loading="lazy"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 text-sm underline"
+                        >
+                          Open in Google Maps
+                        </a>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`, '_blank', 'noopener')}
+                          className="rounded-xl"
+                        >
+                          View Location
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            window.open(
+                              `https://www.google.com/maps?q=&layer=c&cbll=${incident.latitude},${incident.longitude}`,
+                              '_blank',
+                              'noopener'
+                            )
+                          }
+                          className="rounded-xl"
+                        >
+                          Street View
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   </div>
 
-                  <div className="flex gap-2">
+                <div className="flex gap-2">
                     <Button variant="outline" size="sm" className="flex-1">
                       <Users className="w-4 h-4 mr-2" />
                       Contact User
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Activity className="w-4 h-4 mr-2" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      disabled={!incident.latitude || !incident.longitude}
+                      onClick={() => {
+                        if (incident.latitude && incident.longitude) {
+                          window.open(
+                            `https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`,
+                            '_blank',
+                            'noopener'
+                          );
+                        }
+                      }}
+                    >
+                      <MapPin className="w-4 h-4 mr-2" />
                       View Location
                     </Button>
-                  </div>
+                 </div>
                 </div>
               ))
             )}

@@ -77,6 +77,8 @@ export async function fetchIncidents(): Promise<Incident[]> {
     reasoning: i.reasoning,
     user_name: i.user_name,
     user_phone: i.user_phone,
+    latitude: i.latitude,
+    longitude: i.longitude,
   }));
 }
 
@@ -120,7 +122,9 @@ export async function createIncident(
   userId: string,
   type: string,
   message: string,
-  isVoice: boolean
+  isVoice: boolean,
+  latitude?: number,
+  longitude?: number
 ): Promise<void> {
   const authority: 'health' | 'security' = ['medical', 'accident'].includes(type) ? 'health' : 'security';
 
@@ -133,9 +137,20 @@ export async function createIncident(
       message,
       is_voice: isVoice,
       authority,
+      latitude,
+      longitude,
     }),
   });
 
+  await handleResponse<any>(res);
+}
+
+export async function updateIncidentPriority(id: string, severity: 'low' | 'medium' | 'high'): Promise<void> {
+  const res = await fetch(`${API_URL}/incidents/${id}/priority`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ final_severity: severity.toUpperCase() }),
+  });
   await handleResponse<any>(res);
 }
 

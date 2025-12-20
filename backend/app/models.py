@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, Float
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
@@ -52,3 +52,5 @@ class Incident(Base):
     final_severity = Column(String, nullable=True)
     officer_message = Column(String, nullable=True)
     reasoning = Column(String, nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)

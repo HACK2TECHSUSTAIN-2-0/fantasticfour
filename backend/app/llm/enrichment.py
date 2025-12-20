@@ -247,14 +247,15 @@ def resolve_final_severity(triage: dict, llm_severity: str | None) -> str:
     if triage["severity"] == "HIGH":
         return "HIGH"
 
-    if llm_severity is None:
-        return triage["severity"]
-
     rank = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
-    if rank[llm_severity] > rank[triage["severity"]]:
+    triage_sev = triage.get("severity") or "LOW"
+    if triage_sev not in rank:
+        triage_sev = "LOW"
+    if llm_severity is None or llm_severity not in rank:
+        return triage_sev
+    if rank[llm_severity] > rank[triage_sev]:
         return llm_severity
-
-    return triage["severity"]
+    return triage_sev
 
 
 def fallback_response(payload: dict, reason: str = "LLM unavailable or unparsable; severity-based fallback used"):

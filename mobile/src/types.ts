@@ -33,4 +33,6 @@ export interface Incident {
   reasoning?: string;
   user_name?: string;
   user_phone?: string;
+  latitude?: number;
+  longitude?: number;
 }

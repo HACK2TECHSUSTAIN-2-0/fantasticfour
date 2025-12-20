@@ -53,13 +53,23 @@ def create_authority_member(db: Session, member: schemas.AuthorityMemberCreate):
     db.refresh(db_member)
     return db_member
 
-def create_incident(db: Session, incident: schemas.IncidentCreate, final_severity: str | None = None, officer_message: str | None = None, reasoning: str | None = None):
+def create_incident(
+    db: Session,
+    incident: schemas.IncidentCreate,
+    final_severity: str | None = None,
+    officer_message: str | None = None,
+    reasoning: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+):
     db_incident = models.Incident(
         user_id=incident.user_id,
         type=incident.type,
         message=incident.message,
         is_voice=incident.is_voice,
         authority=incident.authority,
+        latitude=incident.latitude if incident.latitude is not None else latitude,
+        longitude=incident.longitude if incident.longitude is not None else longitude,
         final_severity=final_severity,
         officer_message=officer_message,
         reasoning=reasoning,

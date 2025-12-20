@@ -48,6 +48,8 @@ class IncidentBase(BaseModel):
     message: str
     is_voice: bool = False
     authority: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class IncidentCreate(IncidentBase):
     user_id: int
@@ -65,6 +67,10 @@ class Incident(IncidentBase):
 
     class Config:
         from_attributes = True
+
+
+class IncidentPriorityUpdate(BaseModel):
+    final_severity: str
 
 
 # Translation

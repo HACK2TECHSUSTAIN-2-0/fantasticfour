@@ -6,6 +6,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { HeaderBar } from '../components/HeaderBar';
 import { AuthorityMember, Incident, User } from '../types';
 import { colors } from '../theme';
+import { Linking } from 'react-native';
 
 interface AdminDashboardProps {
   adminId: string;
@@ -16,6 +17,7 @@ interface AdminDashboardProps {
   members: AuthorityMember[];
   users: User[];
   incidents: Incident[];
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
 }
 
 export function AdminDashboard({
@@ -27,6 +29,7 @@ export function AdminDashboard({
   members,
   users,
   incidents,
+  onUpdatePriority,
 }: AdminDashboardProps) {
   const now = new Date().toLocaleString();
   const highCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'high').length;
@@ -79,7 +82,10 @@ export function AdminDashboard({
         }
       />
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 140, paddingTop: 16 }}
+      >
         <View style={styles.profileRow}>
           <View>
             <Text style={styles.subtle}>Admin</Text>
@@ -99,7 +105,7 @@ export function AdminDashboard({
           ))}
         </View>
 
-        <Card style={{ gap: 12 }}>
+        <Card style={{ gap: 12, marginBottom: 12 }}>
           <View style={styles.rowBetween}>
             <Text style={styles.title}>Quick Actions</Text>
             <PrimaryButton label="Add Member" onPress={() => setIsAddModalOpen(true)} style={{ paddingVertical: 10, paddingHorizontal: 14 }} />
@@ -113,7 +119,7 @@ export function AdminDashboard({
           </View>
         </Card>
 
-        <Card style={{ gap: 12 }}>
+        <Card style={{ gap: 12, marginBottom: 12 }}>
           <Text style={styles.title}>Active Users</Text>
           {users.length === 0 ? (
             <Text style={styles.subtle}>No active users</Text>
@@ -135,7 +141,7 @@ export function AdminDashboard({
           )}
         </Card>
 
-        <Card style={{ gap: 12 }}>
+        <Card style={{ gap: 12, marginBottom: 12 }}>
           <Text style={styles.title}>Team Members</Text>
           {members.length === 0 ? (
             <Text style={styles.subtle}>No team members added yet</Text>
@@ -155,7 +161,7 @@ export function AdminDashboard({
           )}
         </Card>
 
-        <Card style={{ gap: 12 }}>
+        <Card style={{ gap: 12, marginBottom: 12 }}>
           <View style={styles.rowBetween}>
             <Text style={styles.title}>Active Campus Incidents</Text>
             <Badge label={`${activeIncidents.length} live`} tone="danger" />
@@ -185,6 +191,46 @@ export function AdminDashboard({
                     {incident.reasoning ? <Text style={styles.subtle}>{incident.reasoning}</Text> : null}
                   </View>
                 ) : null}
+                <View style={styles.priorityRow}>
+                  <Text style={styles.subtle}>Priority</Text>
+                  <View style={styles.priorityButtons}>
+                    {['high', 'medium', 'low'].map((level) => (
+                      <TouchableOpacity
+                        key={level}
+                        style={[
+                          styles.priorityChip,
+                          (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipActive : null,
+                        ]}
+                        onPress={() => onUpdatePriority(incident.id, level as 'high' | 'medium' | 'low')}
+                      >
+                        <Text
+                          style={[
+                            styles.priorityChipText,
+                            (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipTextActive : null,
+                          ]}
+                        >
+                          {level.toUpperCase()}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                <View style={[styles.actionRow, { marginTop: 8, flexWrap: 'wrap', gap: 8 }]}>
+                  <PrimaryButton
+                    label="Contact User"
+                    variant="outline"
+                    onPress={() => Linking.openURL(`tel:${incident.user_phone || ''}`)}
+                    style={{ flexBasis: '48%', minHeight: 46 }}
+                  />
+                  <PrimaryButton
+                    label="Open in Google Maps"
+                    variant="outline"
+                    onPress={() =>
+                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${incident.latitude || ''},${incident.longitude || ''}`)
+                    }
+                    style={{ flexBasis: '48%', minHeight: 46 }}
+                  />
+                </View>
               </View>
             ))
           )}
@@ -263,7 +309,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
+    padding: 20,
   },
   profileRow: {
     flexDirection: 'row',
@@ -282,7 +328,7 @@ const styles = StyleSheet.create({
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
   statCard: {
     flexBasis: '48%',
@@ -309,6 +355,7 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     gap: 10,
+    flexWrap: 'wrap',
   },
   actionTile: {
     flex: 1,
@@ -335,6 +382,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     padding: 12,
+    marginBottom: 12,
   },
   incidentMsg: {
     marginTop: 8,
@@ -347,6 +395,32 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
     backgroundColor: '#f0f9ff',
+  },
+  priorityRow: {
+    marginTop: 8,
+    gap: 6,
+  },
+  priorityButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  priorityChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  priorityChipActive: {
+    backgroundColor: '#ede9fe',
+    borderColor: '#7c3aed',
+  },
+  priorityChipText: {
+    fontWeight: '700',
+    color: colors.text,
+  },
+  priorityChipTextActive: {
+    color: '#7c3aed',
   },
   logoutBtn: {
     paddingHorizontal: 12,

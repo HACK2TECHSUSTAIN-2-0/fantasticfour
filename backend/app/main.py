@@ -25,6 +25,8 @@ def ensure_incident_columns():
         conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS final_severity VARCHAR"))
         conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS officer_message VARCHAR"))
         conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS reasoning VARCHAR"))
+        conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION"))
+        conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION"))
 
 
 def ensure_user_columns():
@@ -38,16 +40,11 @@ def ensure_user_columns():
 
 app = FastAPI()
 
-origins = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "*"
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],  # wide open for local dev
+    allow_origin_regex=".*",
+    allow_credentials=False,  # must be False when using "*"
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -163,6 +160,8 @@ def create_incident(incident: schemas.IncidentCreate, background_tasks: Backgrou
         final_severity=final_severity,
         officer_message=officer_message,
         reasoning=reasoning,
+        latitude=incident.latitude,
+        longitude=incident.longitude,
     )
     return db_incident
 
@@ -187,6 +186,8 @@ def read_incidents(db: Session = Depends(get_db)):
             "status": inc.status,
             "user_name": getattr(user, "name", None),
             "user_phone": getattr(user, "phone", None),
+            "latitude": getattr(inc, "latitude", None),
+            "longitude": getattr(inc, "longitude", None),
             "officer_message": getattr(inc, "officer_message", None),
             "final_severity": getattr(inc, "final_severity", None),
             "reasoning": getattr(inc, "reasoning", None),
@@ -204,6 +205,20 @@ def update_incident_status(incident_id: int, req: IncidentStatusRequest, db: Ses
     db_incident.status = req.status
     db.commit()
     return {"message": "Status updated"}
+
+
+@app.put("/incidents/{incident_id}/priority")
+def update_incident_priority(incident_id: int, req: schemas.IncidentPriorityUpdate, db: Session = Depends(get_db)):
+    db_incident = db.query(models.Incident).filter(models.Incident.id == incident_id).first()
+    if not db_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    sev = (req.final_severity or "").upper()
+    if sev not in {"LOW", "MEDIUM", "HIGH"}:
+        raise HTTPException(status_code=400, detail="Invalid severity")
+    db_incident.final_severity = sev
+    db.commit()
+    db.refresh(db_incident)
+    return {"message": "Priority updated", "final_severity": db_incident.final_severity}
 
 
 @app.post("/translate/", response_model=schemas.TranslateResponse)

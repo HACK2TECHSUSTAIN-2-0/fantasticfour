@@ -19,6 +19,8 @@ interface Incident {
   reasoning?: string;
   user_name?: string;
   user_phone?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface SecurityDashboardProps {
@@ -27,9 +29,10 @@ interface SecurityDashboardProps {
   onLogout: () => void;
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
 }
 
-export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus }: SecurityDashboardProps) {
+export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: SecurityDashboardProps) {
   const now = new Date().toLocaleString();
   // Local state for UI only, logic handled by polling in App.tsx
   const activeIncidents = incidents.filter(i => i.status !== 'resolved');
@@ -171,6 +174,50 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                               <p className="text-sm text-blue-900 mt-1">{incident.officer_message}</p>
                             </div>
                           )}
+                          <div className="mt-3">
+                            <label className="text-xs text-gray-600">Priority</label>
+                            <select
+                              className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                              value={(incident.final_severity || 'LOW').toLowerCase()}
+                              onChange={(e) => onUpdatePriority(incident.id, e.target.value as 'low' | 'medium' | 'high')}
+                            >
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                            </select>
+                          </div>
+                          {incident.latitude && incident.longitude && (
+                            <div className="mt-3 space-y-2">
+                              <div className="text-sm text-gray-600">Location:</div>
+                              <div className="w-full h-56 rounded-xl overflow-hidden border border-gray-200 pointer-events-none">
+                                <iframe
+                                  title={`map-${incident.id}`}
+                                  src={`https://www.google.com/maps?q=${incident.latitude},${incident.longitude}&z=15&output=embed`}
+                                  className="w-full h-full"
+                                  allowFullScreen
+                                  loading="lazy"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-600 text-sm underline"
+                                >
+                                  Open in Google Maps
+                                </a>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`, '_blank', 'noopener')}
+                                  className="rounded-xl"
+                                >
+                                  View Location
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-4 text-sm text-gray-600 flex-wrap">
@@ -205,7 +252,21 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                       <Phone className="w-4 h-4 mr-2" />
                       Contact User
                     </Button>
-                    <Button variant="outline" size="sm" className="rounded-xl flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl flex-1"
+                      disabled={!incident.latitude || !incident.longitude}
+                      onClick={() => {
+                        if (incident.latitude && incident.longitude) {
+                          window.open(
+                            `https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`,
+                            '_blank',
+                            'noopener'
+                          );
+                        }
+                      }}
+                    >
                       <MapPin className="w-4 h-4 mr-2" />
                       View Location
                     </Button>

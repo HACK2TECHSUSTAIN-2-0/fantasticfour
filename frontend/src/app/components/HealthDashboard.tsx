@@ -19,6 +19,8 @@ interface Incident {
   reasoning?: string;
   user_name?: string;
   user_phone?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface HealthDashboardProps {
@@ -27,10 +29,12 @@ interface HealthDashboardProps {
   onLogout: () => void;
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
 }
 
-export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus }: HealthDashboardProps) {
+export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: HealthDashboardProps) {
   const now = new Date().toLocaleString();
+  const [priorityDraft, setPriorityDraft] = useState<Record<string, string>>({});
   // Local state for UI only, logic handled by polling in App.tsx
   const activeIncidents = incidents.filter(i => i.status !== 'resolved');
   const highCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'high').length;
@@ -192,6 +196,57 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                               <p className="text-sm text-red-900 mt-1">{incident.officer_message}</p>
                             </div>
                           )}
+                          <div className="mt-3">
+                            <label className="text-xs text-gray-600">Priority</label>
+                            <select
+                              className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                              value={(priorityDraft[incident.id] || incident.final_severity || 'low').toLowerCase()}
+                              onChange={(e) =>
+                                setPriorityDraft((prev) => ({ ...prev, [incident.id]: e.target.value }))
+                              }
+                            >
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                            </select>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 rounded-xl"
+                              onClick={() =>
+                                onUpdatePriority(
+                                  incident.id,
+                                  ((priorityDraft[incident.id] || incident.final_severity || 'low') as 'low' | 'medium' | 'high')
+                                )
+                              }
+                            >
+                              Change Priority
+                            </Button>
+                          </div>
+                          {incident.latitude && incident.longitude && (
+                            <div className="mt-3 space-y-2">
+                              <div className="text-sm text-gray-600">Location:</div>
+                              <div className="w-full h-56 rounded-xl overflow-hidden border border-gray-200 pointer-events-none">
+                                <iframe
+                                  title={`map-${incident.id}`}
+                                  src={`https://www.google.com/maps?q=${incident.latitude},${incident.longitude}&z=15&output=embed`}
+                                  className="w-full h-full"
+                                  allowFullScreen
+                                  loading="lazy"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                              <a
+                                href={`https://www.google.com/maps?q=&layer=c&cbll=${incident.latitude},${incident.longitude}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-600 text-sm underline"
+                              >
+                                Street View
+                              </a>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -226,7 +281,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                       <Phone className="w-4 h-4 mr-2" />
                       Contact User
                     </Button>
-                    <Button variant="outline" size="sm" className="rounded-xl flex-1">
+                    <Button variant="outline" size="sm" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`, '_blank', 'noopener')} className="rounded-xl flex-1">
                       <MapPin className="w-4 h-4 mr-2" />
                       View Location
                     </Button>

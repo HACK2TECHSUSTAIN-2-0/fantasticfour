@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -13,11 +14,12 @@ interface SecurityDashboardProps {
   onLogout: () => void;
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
 }
 
 const patrols: any[] = [];
 
-export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus }: SecurityDashboardProps) {
+export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: SecurityDashboardProps) {
   const now = new Date().toLocaleString();
   const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
 
@@ -34,7 +36,10 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
         }
       />
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 140, paddingTop: 16 }}
+      >
         <View style={styles.profileRow}>
           <View>
             <Text style={styles.subtle}>Security Staff</Text>
@@ -95,12 +100,109 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                       <Text style={styles.body}>{incident.officer_message}</Text>
                     </View>
                   ) : null}
+                  <View style={styles.priorityRow}>
+                    <Text style={styles.subtle}>Priority</Text>
+                    <View style={styles.priorityButtons}>
+                      {['high', 'medium', 'low'].map((level) => (
+                        <TouchableOpacity
+                          key={level}
+                          style={[
+                            styles.priorityChip,
+                            (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipActive : null,
+                          ]}
+                          onPress={() => onUpdatePriority(incident.id, level as 'high' | 'medium' | 'low')}
+                        >
+                          <Text
+                            style={[
+                              styles.priorityChipText,
+                              (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipTextActive : null,
+                            ]}
+                          >
+                            {level.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  {incident.latitude && incident.longitude ? (
+                    <View style={{ marginTop: 10, gap: 8 }}>
+                      <Text style={styles.subtle}>Lat/Lng: {incident.latitude.toFixed(4)}, {incident.longitude.toFixed(4)}</Text>
+                      <PrimaryButton
+                        label="Street View"
+                        variant="outline"
+                        onPress={() =>
+                          Linking.openURL(`https://www.google.com/maps?q=&layer=c&cbll=${incident.latitude},${incident.longitude}`)
+                        }
+                      />
+                    </View>
+                  ) : (
+                    <View style={{ marginTop: 10 }}>
+                      <PrimaryButton label="Location unavailable" variant="outline" disabled />
+                    </View>
+                  )}
                 </View>
-                <View style={styles.rowBetween}>
+                <View style={styles.actionRow}>
                   {incident.status === 'pending' ? (
-                    <PrimaryButton label="Respond" onPress={() => onUpdateStatus(incident.id, 'responding')} style={{ flex: 1, marginRight: 8 }} />
+                    <PrimaryButton
+                      label="Respond"
+                      onPress={() => onUpdateStatus(incident.id, 'responding')}
+                      style={styles.actionBtn}
+                    />
                   ) : null}
-                  <PrimaryButton label="Resolve" onPress={() => onUpdateStatus(incident.id, 'resolved')} style={{ flex: 1 }} />
+                  <PrimaryButton
+                    label="Resolve"
+                    onPress={() => onUpdateStatus(incident.id, 'resolved')}
+                    style={styles.actionBtn}
+                  />
+                  <PrimaryButton
+                    label="Contact User"
+                    variant="outline"
+                    onPress={() => {
+                      const number = incident.user_phone || '';
+                      Linking.openURL(`tel:${number}`);
+                    }}
+                    style={styles.actionBtn}
+                  />
+                  <PrimaryButton
+                    label="Open in Google Maps"
+                    variant="outline"
+                    onPress={() =>
+                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${incident.latitude || ''},${incident.longitude || ''}`)
+                    }
+                    style={styles.actionBtn}
+                  />
+                  <PrimaryButton
+                    label="Street View"
+                    variant="outline"
+                    onPress={() =>
+                      Linking.openURL(`https://www.google.com/maps?q=&layer=c&cbll=${incident.latitude || ''},${incident.longitude || ''}`)
+                    }
+                    style={styles.actionBtn}
+                  />
+                </View>
+                <View style={styles.priorityRow}>
+                  <Text style={styles.subtle}>Priority</Text>
+                  <View style={styles.priorityButtons}>
+                    {['high', 'medium', 'low'].map((level) => (
+                      <TouchableOpacity
+                        key={level}
+                        style={[
+                          styles.priorityChip,
+                          (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipActive : null,
+                        ]}
+                        onPress={() => onUpdatePriority(incident.id, level as 'high' | 'medium' | 'low')}
+                      >
+                        <Text
+                          style={[
+                            styles.priorityChipText,
+                            (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipTextActive : null,
+                          ]}
+                        >
+                          {level.toUpperCase()}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               </View>
             ))
@@ -131,7 +233,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 16,
+    padding: 20,
   },
   profileRow: {
     flexDirection: 'row',
@@ -150,7 +252,7 @@ const styles = StyleSheet.create({
   statGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
   statCard: {
     flexBasis: '48%',
@@ -180,7 +282,43 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     padding: 12,
+    marginBottom: 12,
     gap: 10,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  actionBtn: {
+    flexBasis: '48%',
+    minHeight: 46,
+  },
+  priorityRow: {
+    marginTop: 8,
+    gap: 6,
+  },
+  priorityButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  priorityChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  priorityChipActive: {
+    backgroundColor: '#ede9fe',
+    borderColor: '#7c3aed',
+  },
+  priorityChipText: {
+    fontWeight: '700',
+    color: colors.text,
+  },
+  priorityChipTextActive: {
+    color: '#7c3aed',
   },
   messageBox: {
     backgroundColor: '#fff7ed',

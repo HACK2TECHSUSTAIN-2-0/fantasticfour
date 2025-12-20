@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
+import * as Location from 'expo-location';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -11,7 +12,7 @@ import { uploadSpeechToEnglish } from '../api';
 interface UserDashboardProps {
   userId: string;
   userName: string;
-  onSendIncident: (type: string, message: string, isVoice: boolean) => void;
+  onSendIncident: (type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => void;
   onLogout?: () => void;
 }
 
@@ -21,11 +22,12 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [coords, setCoords] = useState<{ latitude?: number; longitude?: number }>({});
 
   const triggerSend = (type: string, msg?: string) => {
     const payload = msg ?? incidentMessage.trim();
     if (!payload && type === 'general') return;
-    onSendIncident(type, payload || `SOS: ${type.toUpperCase()} ALERT`, false);
+    onSendIncident(type, payload || `SOS: ${type.toUpperCase()} ALERT`, false, coords.latitude, coords.longitude);
     if (!msg) setIncidentMessage('');
   };
 
@@ -80,24 +82,43 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
   const handleSos = () => {
     const payload = incidentMessage.trim();
     if (!payload) {
-      onSendIncident('general', 'HIGH PRIORITY SOS', false);
+      onSendIncident('general', 'HIGH PRIORITY SOS', false, coords.latitude, coords.longitude);
     } else {
-      onSendIncident('general', payload, false);
+      onSendIncident('general', payload, false, coords.latitude, coords.longitude);
       setIncidentMessage('');
     }
   };
 
+  // Grab location once
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      } catch {
+        // ignore if unavailable
+      }
+    })();
+  }, []);
+
   return (
     <View style={styles.screen}>
       <LinearGradient colors={gradients.purplePink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
-        <Text style={styles.headerTitle}>Welcome, {userName}</Text>
-        <Text style={styles.headerSubtitle}>Stay Safe, Stay Connected</Text>
+        <View style={{ paddingTop: 24, paddingBottom: 12 }}>
+          <Text style={styles.headerTitle}>Welcome, {userName}</Text>
+          <Text style={styles.headerSubtitle}>Stay Safe, Stay Connected</Text>
+        </View>
       </LinearGradient>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 160, paddingTop: 32 }}
+      >
         {activeTab === 'sos' ? (
-          <View style={{ gap: 14 }}>
-            <Card style={{ gap: 12 }}>
+          <View style={{ gap: 18 }}>
+            <Card style={{ gap: 12, marginBottom: 12 }}>
               <Text style={styles.title}>Describe Your Emergency</Text>
               <TextInput
                 multiline
@@ -150,7 +171,7 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
               <Text style={styles.sosCircleSub}>Tap to send</Text>
             </TouchableOpacity>
 
-            <Card>
+            <Card style={{ marginBottom: 12 }}>
               <Text style={styles.title}>Emergency Contacts</Text>
               <View style={{ gap: 10, marginTop: 8 }}>
                 {[
@@ -222,7 +243,7 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
         ) : null}
       </ScrollView>
 
-      <View style={styles.navbar}>
+      <View style={[styles.navbar, { bottom: 24 }]}>
         {[
           { id: 'sos', label: 'SOS' },
           { id: 'history', label: 'History' },
@@ -237,6 +258,7 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
           </TouchableOpacity>
         ))}
       </View>
+      <View style={styles.navSpacer} />
     </View>
   );
 }
@@ -262,7 +284,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   content: {
-    padding: 16,
+    padding: 20,
   },
   rowBetween: {
     flexDirection: 'row',
@@ -289,7 +311,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   textArea: {
-    minHeight: 110,
+    minHeight: 140,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
@@ -330,7 +352,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc2626',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,

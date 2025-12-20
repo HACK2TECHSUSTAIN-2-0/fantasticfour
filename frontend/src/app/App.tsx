@@ -43,6 +43,8 @@ interface Incident {
   reasoning?: string;
   user_name?: string;
   user_phone?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export default function App() {
@@ -78,6 +80,8 @@ export default function App() {
             authority: i.authority,
             user_name: i.user_name,
             user_phone: i.user_phone,
+            latitude: i.latitude,
+            longitude: i.longitude,
           }))
         );
       }
@@ -266,7 +270,24 @@ export default function App() {
     }
   };
 
-  const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean) => {
+  const handleUpdateIncidentPriority = async (id: string, final_severity: 'low' | 'medium' | 'high') => {
+    try {
+      const res = await fetch(`${API_URL}/incidents/${id}/priority`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ final_severity: final_severity.toUpperCase() })
+      });
+      if (res.ok) {
+        refreshData();
+      } else {
+        toast.error('Failed to update priority');
+      }
+    } catch {
+      toast.error('Network error updating priority');
+    }
+  };
+
+  const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => {
     let authority: 'health' | 'security' = 'security';
     if (type === 'medical' || type === 'accident') {
       authority = 'health';
@@ -281,7 +302,9 @@ export default function App() {
           type,
           message,
           is_voice: isVoice,
-          authority
+          authority,
+          latitude,
+          longitude
         })
       });
 
@@ -312,7 +335,7 @@ export default function App() {
           userId={appState.userId}
           userName={appState.userName}
           apiBaseUrl={API_URL}
-          onSendIncident={(type, message, isVoice) => handleSendIncident(appState.userId, type, message, isVoice)}
+          onSendIncident={(type, message, isVoice, latitude, longitude) => handleSendIncident(appState.userId, type, message, isVoice, latitude, longitude)}
         />
       )}
 
@@ -334,6 +357,7 @@ export default function App() {
             name: u.name
           }))}
           incidents={incidents}
+          onUpdatePriority={handleUpdateIncidentPriority}
         />
       )}
 
@@ -344,6 +368,7 @@ export default function App() {
           onLogout={handleLogout}
           incidents={incidents.filter(i => i.authority === 'health')}
           onUpdateStatus={handleUpdateIncidentStatus}
+          onUpdatePriority={handleUpdateIncidentPriority}
         />
       )}
 
@@ -354,6 +379,7 @@ export default function App() {
           onLogout={handleLogout}
           incidents={incidents.filter(i => i.authority === 'security')}
           onUpdateStatus={handleUpdateIncidentStatus}
+          onUpdatePriority={handleUpdateIncidentPriority}
         />
       )}
 

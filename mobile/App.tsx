@@ -12,6 +12,7 @@ import {
   updateIncidentStatus,
   loginUser,
   registerUser,
+  updateIncidentPriority,
 } from './src/api';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { UserDashboard } from './src/screens/UserDashboard';
@@ -151,9 +152,18 @@ export default function App() {
     }
   };
 
-  const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean) => {
+  const handleUpdateIncidentPriority = async (id: string, severity: 'low' | 'medium' | 'high') => {
     try {
-      await createIncident(userId, type, message, isVoice);
+      await updateIncidentPriority(id, severity);
+      refreshData();
+    } catch (error: any) {
+      Alert.alert('Failed to update priority', error?.message || 'Unable to update incident');
+    }
+  };
+
+  const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => {
+    try {
+      await createIncident(userId, type, message, isVoice, latitude, longitude);
       Alert.alert('Emergency alert sent');
       refreshData();
     } catch (error: any) {
@@ -187,7 +197,9 @@ export default function App() {
         <UserDashboard
           userId={appState.userId}
           userName={appState.userName}
-          onSendIncident={(type, message, isVoice) => handleSendIncident(appState.userId, type, message, isVoice)}
+          onSendIncident={(type, message, isVoice, latitude, longitude) =>
+            handleSendIncident(appState.userId, type, message, isVoice, latitude, longitude)
+          }
           onLogout={handleLogout}
         />
       ) : null}
@@ -202,6 +214,7 @@ export default function App() {
           members={members}
           users={users}
           incidents={incidents}
+          onUpdatePriority={handleUpdateIncidentPriority}
         />
       ) : null}
 
@@ -212,6 +225,7 @@ export default function App() {
           onLogout={handleLogout}
           incidents={incidents.filter((i) => i.authority === 'health')}
           onUpdateStatus={handleUpdateIncidentStatus}
+          onUpdatePriority={handleUpdateIncidentPriority}
         />
       ) : null}
 
@@ -222,6 +236,7 @@ export default function App() {
           onLogout={handleLogout}
           incidents={incidents.filter((i) => i.authority === 'security')}
           onUpdateStatus={handleUpdateIncidentStatus}
+          onUpdatePriority={handleUpdateIncidentPriority}
         />
       ) : null}
 
