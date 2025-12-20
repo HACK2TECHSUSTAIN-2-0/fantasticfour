@@ -29,13 +29,19 @@ interface SecurityDashboardProps {
   onLogout: () => void;
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
-  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
 }
 
 export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: SecurityDashboardProps) {
   const now = new Date().toLocaleString();
   // Local state for UI only, logic handled by polling in App.tsx
   const activeIncidents = incidents.filter(i => i.status !== 'resolved');
+  const normalizeSeverity = (sev?: string) => {
+    const s = (sev || '').toLowerCase();
+    if (s === 'critical' || s === 'high') return 'critical';
+    if (s === 'medium') return 'medium';
+    return 'low';
+  };
 
   const [patrols] = useState([
     { id: 'P1', officer: 'Officer Johnson', zone: 'North Campus', status: 'active' },
@@ -43,6 +49,7 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
     { id: 'P3', officer: 'Officer Davis', zone: 'Central Campus', status: 'break' },
     { id: 'P4', officer: 'Officer Wilson', zone: 'East Campus', status: 'active' },
   ]);
+  const [priorityDraft, setPriorityDraft] = useState<Record<string, string>>({});
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -85,7 +92,7 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
               <div>
                 <p className="text-gray-600 text-sm mb-1">Low Severity</p>
                 <div className="text-green-500">
-                  {incidents.filter(i => (i.final_severity || '').toLowerCase() === 'low').length}
+                  {activeIncidents.filter(i => normalizeSeverity(i.final_severity) === 'low').length}
                 </div>
               </div>
               <Radio className="w-8 h-8 text-green-500" />
@@ -96,7 +103,7 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
               <div>
                 <p className="text-gray-600 text-sm mb-1">Medium Severity</p>
                 <div className="text-blue-500">
-                  {incidents.filter(i => (i.final_severity || '').toLowerCase() === 'medium').length}
+                  {activeIncidents.filter(i => normalizeSeverity(i.final_severity) === 'medium').length}
                 </div>
               </div>
               <Camera className="w-8 h-8 text-blue-500" />
@@ -105,9 +112,9 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
           <Card className="p-6 bg-white rounded-2xl shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm mb-1">High Severity</p>
+                <p className="text-gray-600 text-sm mb-1">Critical Severity</p>
                 <div className="text-red-500">
-                  {incidents.filter(i => i.final_severity === 'HIGH').length}
+                  {activeIncidents.filter(i => normalizeSeverity(i.final_severity) === 'critical').length}
                 </div>
               </div>
               <Shield className="w-8 h-8 text-red-500" />
@@ -128,9 +135,8 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
 
         {/* Main Content */}
         <Tabs defaultValue="incidents" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="incidents">Active Incidents</TabsTrigger>
-            <TabsTrigger value="map">Campus Map</TabsTrigger>
             <TabsTrigger value="protocols">Response Protocols</TabsTrigger>
           </TabsList>
 
@@ -154,9 +160,9 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                             {incident.status.toUpperCase()}
                           </Badge>
                           {incident.final_severity && (
-                            <Badge className={`${incident.final_severity === 'HIGH' ? 'bg-red-500' : 'bg-yellow-500'
+                            <Badge className={`${(incident.final_severity || '').toLowerCase() === 'critical' ? 'bg-red-500' : 'bg-yellow-500'
                               } text-white`}>
-                              {incident.final_severity}
+                              {(incident.final_severity || '').toUpperCase() === 'HIGH' ? 'CRITICAL' : incident.final_severity}
                             </Badge>
                           )}
                         </div>
@@ -178,13 +184,28 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                             <label className="text-xs text-gray-600">Priority</label>
                             <select
                               className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                              value={(incident.final_severity || 'LOW').toLowerCase()}
-                              onChange={(e) => onUpdatePriority(incident.id, e.target.value as 'low' | 'medium' | 'high')}
+                              value={normalizeSeverity(priorityDraft[incident.id] || incident.final_severity || 'low')}
+                              onChange={(e) =>
+                                setPriorityDraft((prev) => ({ ...prev, [incident.id]: e.target.value }))
+                              }
                             >
                               <option value="low">Low</option>
                               <option value="medium">Medium</option>
-                              <option value="high">High</option>
+                              <option value="critical">Critical</option>
                             </select>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 rounded-xl"
+                              onClick={() =>
+                                onUpdatePriority(
+                                  incident.id,
+                                  normalizeSeverity(priorityDraft[incident.id] || incident.final_severity || 'low') as 'low' | 'medium' | 'critical'
+                                )
+                              }
+                            >
+                              Change Priority
+                            </Button>
                           </div>
                           {incident.latitude && incident.longitude && (
                             <div className="mt-3 space-y-2">
@@ -276,53 +297,7 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
             )}
           </TabsContent>
 
-          <TabsContent value="map" className="space-y-4">
-            <Card className="p-6 bg-white rounded-2xl shadow-sm">
-              <h3 className="mb-4">Live Campus Map</h3>
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-8 min-h-[400px] flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-                  <h3 className="mb-2">Interactive Campus Map</h3>
-                  <p className="text-gray-600 mb-4">Real-time incident tracking and patrol monitoring</p>
-                  <div className="flex gap-4 justify-center flex-wrap">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-red-500 rounded-full mr-2" />
-                      <span className="text-sm">Active Incidents</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-green-500 rounded-full mr-2" />
-                      <span className="text-sm">Patrol Units</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full mr-2" />
-                      <span className="text-sm">CCTV Cameras</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <div className="grid md:grid-cols-3 gap-4">
-              <Card className="p-4 bg-white rounded-2xl shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span>North Campus</span>
-                  <Badge className="bg-green-100 text-green-700">Clear</Badge>
-                </div>
-              </Card>
-              <Card className="p-4 bg-white rounded-2xl shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span>Central Campus</span>
-                  <Badge className="bg-red-100 text-red-700">2 Incidents</Badge>
-                </div>
-              </Card>
-              <Card className="p-4 bg-white rounded-2xl shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span>South Campus</span>
-                  <Badge className="bg-green-100 text-green-700">Clear</Badge>
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
+          
 
           <TabsContent value="protocols" className="space-y-4">
             <Card className="p-6 bg-white rounded-2xl shadow-sm">

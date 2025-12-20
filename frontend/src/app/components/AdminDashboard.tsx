@@ -33,7 +33,7 @@ interface AdminDashboardProps {
   members: Array<{ id: string; name: string; email: string; role: string }>;
   users: Array<{ id: string; name: string }>;
   incidents: Incident[];
-  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
 }
 
 export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRemoveUser, members, users, incidents, onUpdatePriority }: AdminDashboardProps) {
@@ -44,9 +44,16 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
   const [newMemberPassword, setNewMemberPassword] = useState('');
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
   const now = new Date().toLocaleString();
-  const highCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'high').length;
-  const mediumCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'medium').length;
-  const lowCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'low').length;
+  const normalizeSeverity = (sev?: string) => {
+    const s = (sev || '').toLowerCase();
+    if (s === 'critical' || s === 'high') return 'critical';
+    if (s === 'medium') return 'medium';
+    return 'low';
+  };
+  const activeIncidents = incidents.filter(i => i.status !== 'resolved');
+  const criticalCount = activeIncidents.filter(i => normalizeSeverity(i.final_severity) === 'critical').length;
+  const mediumCount = activeIncidents.filter(i => normalizeSeverity(i.final_severity) === 'medium').length;
+  const lowCount = activeIncidents.filter(i => normalizeSeverity(i.final_severity) === 'low').length;
   const [priorityDraft, setPriorityDraft] = useState<Record<string, string>>({});
 
   // rest of state logic...
@@ -72,7 +79,7 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
   const stats = [
     { label: 'Total Users', value: users.length.toString(), icon: Users, color: 'text-blue-500' },
     { label: 'Active Incidents', value: incidents.filter(i => i.status !== 'resolved').length.toString(), icon: Bell, color: 'text-red-500' },
-    { label: 'High Severity', value: highCount.toString(), icon: AlertCircle, color: 'text-red-600' },
+    { label: 'Critical Severity', value: criticalCount.toString(), icon: AlertCircle, color: 'text-red-600' },
     { label: 'Medium Severity', value: mediumCount.toString(), icon: Clock, color: 'text-yellow-600' },
     { label: 'Low Severity', value: lowCount.toString(), icon: Users, color: 'text-green-600' },
     { label: 'Team Members', value: members.length.toString(), icon: Activity, color: 'text-indigo-600' },
@@ -119,10 +126,9 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
           ))}
         </div>
 
-        {/* Quick Actions */}
         <Card className="p-6 bg-white rounded-2xl shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h2>Quick Actions</h2>
+          <div className="flex justify-between items-center">
+            <h2>Add Member</h2>
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 rounded-xl">
@@ -186,21 +192,6 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                 </div>
               </DialogContent>
             </Dialog>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all">
-              <TrendingUp className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-              <div className="text-sm">View Analytics</div>
-            </button>
-            <button className="p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all">
-              <Bell className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-              <div className="text-sm">Manage Alerts</div>
-            </button>
-            <button className="p-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all">
-              <Settings className="w-8 h-8 text-green-500 mx-auto mb-2" />
-              <div className="text-sm">System Settings</div>
-            </button>
           </div>
         </Card>
 
@@ -325,9 +316,15 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                         {incident.status.toUpperCase()}
                       </span>
                       {incident.final_severity && (
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium text-white ${incident.final_severity === 'HIGH' || incident.final_severity === 'critical' ? 'bg-red-500' : 'bg-yellow-500'
-                          }`}>
-                          {incident.final_severity}
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium text-white ${normalizeSeverity(incident.final_severity) === 'critical'
+                            ? 'bg-red-500'
+                            : normalizeSeverity(incident.final_severity) === 'medium'
+                              ? 'bg-yellow-500'
+                              : 'bg-green-600'
+                            }`}
+                        >
+                          {normalizeSeverity(incident.final_severity).toUpperCase()}
                         </span>
                       )}
                     </div>
@@ -349,14 +346,14 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                       <label className="text-xs text-gray-600">Priority</label>
                       <select
                         className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                        value={(priorityDraft[incident.id] || incident.final_severity || 'low').toLowerCase()}
+                        value={normalizeSeverity(priorityDraft[incident.id] || incident.final_severity || 'low')}
                         onChange={(e) =>
                           setPriorityDraft((prev) => ({ ...prev, [incident.id]: e.target.value }))
                         }
                       >
                         <option value="low">Low</option>
                         <option value="medium">Medium</option>
-                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
                       </select>
                       <Button
                         variant="outline"
@@ -365,7 +362,7 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                         onClick={() =>
                           onUpdatePriority(
                             incident.id,
-                            ((priorityDraft[incident.id] || incident.final_severity || 'low') as 'low' | 'medium' | 'high')
+                            normalizeSeverity(priorityDraft[incident.id] || incident.final_severity || 'low') as 'low' | 'medium' | 'critical'
                           )
                         }
                       >

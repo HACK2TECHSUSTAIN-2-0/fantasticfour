@@ -17,7 +17,7 @@ interface UserDashboardProps {
 }
 
 export function UserDashboard({ userId, userName, onSendIncident, onLogout }: UserDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'sos' | 'history' | 'profile'>('sos');
+  const [activeTab, setActiveTab] = useState<'sos' | 'profile'>('sos');
   const [incidentMessage, setIncidentMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -191,24 +191,6 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
           </View>
         ) : null}
 
-        {activeTab === 'history' ? (
-          <Card style={{ gap: 10 }}>
-            <Text style={styles.title}>Alert History</Text>
-            {[
-              { title: 'Medical Emergency', status: 'Resolved', time: 'Dec 15, 2025 • 10:30 AM' },
-              { title: 'Security Alert', status: 'Resolved', time: 'Dec 10, 2025 • 3:45 PM' },
-            ].map((item) => (
-              <View key={item.time} style={styles.historyRow}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={styles.historyTitle}>{item.title}</Text>
-                  <Badge label={item.status} tone="success" />
-                </View>
-                <Text style={styles.historyTime}>{item.time}</Text>
-              </View>
-            ))}
-          </Card>
-        ) : null}
-
         {activeTab === 'profile' ? (
           <View style={{ gap: 14 }}>
             <Card style={{ alignItems: 'center', gap: 12 }}>
@@ -246,7 +228,6 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
       <View style={[styles.navbar, { bottom: 24 }]}>
         {[
           { id: 'sos', label: 'SOS' },
-          { id: 'history', label: 'History' },
           { id: 'profile', label: 'Profile' },
         ].map((tab) => (
           <TouchableOpacity

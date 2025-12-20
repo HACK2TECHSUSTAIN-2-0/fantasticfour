@@ -29,26 +29,30 @@ interface HealthDashboardProps {
   onLogout: () => void;
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
-  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
 }
 
 export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: HealthDashboardProps) {
   const now = new Date().toLocaleString();
   const [priorityDraft, setPriorityDraft] = useState<Record<string, string>>({});
+  const normalizeSeverity = (sev?: string) => {
+    const s = (sev || '').toLowerCase();
+    if (s === 'critical' || s === 'high') return 'critical';
+    if (s === 'medium') return 'medium';
+    return 'low';
+  };
   // Local state for UI only, logic handled by polling in App.tsx
   const activeIncidents = incidents.filter(i => i.status !== 'resolved');
-  const highCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'high').length;
-  const mediumCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'medium').length;
-  const lowCount = incidents.filter(i => (i.final_severity || '').toLowerCase() === 'low').length;
+  const criticalCount = activeIncidents.filter(i => normalizeSeverity(i.final_severity) === 'critical').length;
+  const mediumCount = activeIncidents.filter(i => normalizeSeverity(i.final_severity) === 'medium').length;
+  const lowCount = activeIncidents.filter(i => normalizeSeverity(i.final_severity) === 'low').length;
 
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'critical': return 'bg-red-500';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-blue-500';
-      default: return 'bg-gray-500';
-    }
+    const p = normalizeSeverity(priority);
+    if (p === 'critical') return 'bg-red-500';
+    if (p === 'medium') return 'bg-yellow-500';
+    if (p === 'low') return 'bg-blue-500';
+    return 'bg-gray-500';
   };
 
   const getStatusColor = (status: string) => {
@@ -102,7 +106,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm mb-1">Critical</p>
-                <div className="text-red-500">{highCount}</div>
+                <div className="text-red-500">{criticalCount}</div>
               </div>
               <Activity className="w-8 h-8 text-red-500" />
             </div>
@@ -149,10 +153,9 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
 
         {/* Main Content */}
         <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="active">Active Incidents</TabsTrigger>
             <TabsTrigger value="triage">Triage Center</TabsTrigger>
-            <TabsTrigger value="resources">Resources</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="space-y-4">
@@ -176,9 +179,15 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                             {incident.status}
                           </Badge>
                           {incident.final_severity && (
-                            <Badge className={`${incident.final_severity === 'HIGH' ? 'bg-red-500' : 'bg-yellow-500'
-                              } text-white`}>
-                              {incident.final_severity}
+                            <Badge
+                              className={`${normalizeSeverity(incident.final_severity) === 'critical'
+                                ? 'bg-red-500'
+                                : normalizeSeverity(incident.final_severity) === 'medium'
+                                  ? 'bg-yellow-500'
+                                  : 'bg-blue-500'
+                                } text-white`}
+                            >
+                              {normalizeSeverity(incident.final_severity).toUpperCase()}
                             </Badge>
                           )}
                         </div>
@@ -198,29 +207,29 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                           )}
                           <div className="mt-3">
                             <label className="text-xs text-gray-600">Priority</label>
-                            <select
-                              className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2 text-sm"
-                              value={(priorityDraft[incident.id] || incident.final_severity || 'low').toLowerCase()}
-                              onChange={(e) =>
-                                setPriorityDraft((prev) => ({ ...prev, [incident.id]: e.target.value }))
-                              }
-                            >
-                              <option value="low">Low</option>
-                              <option value="medium">Medium</option>
-                              <option value="high">High</option>
-                            </select>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-2 rounded-xl"
-                              onClick={() =>
-                                onUpdatePriority(
-                                  incident.id,
-                                  ((priorityDraft[incident.id] || incident.final_severity || 'low') as 'low' | 'medium' | 'high')
-                                )
-                              }
-                            >
-                              Change Priority
+                    <select
+                      className="w-full mt-1 border border-gray-200 rounded-xl px-3 py-2 text-sm"
+                      value={normalizeSeverity(priorityDraft[incident.id] || incident.final_severity || 'low')}
+                      onChange={(e) =>
+                        setPriorityDraft((prev) => ({ ...prev, [incident.id]: e.target.value }))
+                      }
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 rounded-xl"
+                      onClick={() =>
+                        onUpdatePriority(
+                          incident.id,
+                          normalizeSeverity(priorityDraft[incident.id] || incident.final_severity || 'low') as 'low' | 'medium' | 'critical'
+                        )
+                      }
+                    >
+                      Change Priority
                             </Button>
                           </div>
                           {incident.latitude && incident.longitude && (
@@ -304,15 +313,6 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                     Life-threatening conditions: cardiac arrest, severe bleeding, major trauma
                   </p>
                 </div>
-                <div className="p-4 bg-orange-50 border-l-4 border-orange-500 rounded-xl">
-                  <div className="flex items-center mb-2">
-                    <div className="w-3 h-3 bg-orange-500 rounded-full mr-3" />
-                    <span>High - Urgent Care Needed</span>
-                  </div>
-                  <p className="text-sm text-gray-600 ml-6">
-                    Serious injuries, severe allergic reactions, respiratory distress
-                  </p>
-                </div>
                 <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-xl">
                   <div className="flex items-center mb-2">
                     <div className="w-3 h-3 bg-yellow-500 rounded-full mr-3" />
@@ -357,82 +357,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
             </Card>
           </TabsContent>
 
-          <TabsContent value="resources" className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="p-6 bg-white rounded-2xl shadow-sm">
-                <h3 className="mb-4">Medical Equipment Status</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
-                    <span>Ambulances Available</span>
-                    <Badge className="bg-green-500 text-white">3/3</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
-                    <span>AED Units</span>
-                    <Badge className="bg-green-500 text-white">12/12</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-xl">
-                    <span>First Aid Kits</span>
-                    <Badge className="bg-yellow-500 text-white">15/18</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
-                    <span>Medical Staff On Duty</span>
-                    <Badge className="bg-green-500 text-white">8/8</Badge>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white rounded-2xl shadow-sm">
-                <h3 className="mb-4">Emergency Contacts</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <div>
-                      <div>Campus Medical Center</div>
-                      <p className="text-sm text-gray-600">Main Facility</p>
-                    </div>
-                    <Button size="sm" className="bg-green-500 hover:bg-green-600 rounded-full">
-                      <Phone className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <div>
-                      <div>City Hospital</div>
-                      <p className="text-sm text-gray-600">Emergency Room</p>
-                    </div>
-                    <Button size="sm" className="bg-green-500 hover:bg-green-600 rounded-full">
-                      <Phone className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                    <div>
-                      <div>Poison Control</div>
-                      <p className="text-sm text-gray-600">24/7 Hotline</p>
-                    </div>
-                    <Button size="sm" className="bg-green-500 hover:bg-green-600 rounded-full">
-                      <Phone className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border-none">
-              <h3 className="mb-3">Response Time Target</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-red-500 mb-1">Critical</div>
-                  <p className="text-sm text-gray-600">&lt; 2 minutes</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-orange-500 mb-1">High</div>
-                  <p className="text-sm text-gray-600">&lt; 5 minutes</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-yellow-500 mb-1">Medium</div>
-                  <p className="text-sm text-gray-600">&lt; 10 minutes</p>
-                </div>
-              </div>
-            </Card>
-          </TabsContent>
+          
         </Tabs>
       </div>
     </div>

@@ -145,7 +145,7 @@ export async function createIncident(
   await handleResponse<any>(res);
 }
 
-export async function updateIncidentPriority(id: string, severity: 'low' | 'medium' | 'high'): Promise<void> {
+export async function updateIncidentPriority(id: string, severity: 'low' | 'medium' | 'critical'): Promise<void> {
   const res = await fetch(`${API_URL}/incidents/${id}/priority`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

@@ -6,11 +6,23 @@ from sqlalchemy import text
 
 from . import crud, models, schemas
 from .database import SessionLocal, engine, get_db
-from .llm.enrichment import enrich_alert
+from .llm.enrichment import enrich_alert, classify_authority_llm
 from .services.translation import translate_to_english
 from .services.speech import transcribe_to_english
 from .ai.triage import run_ai_triage
 import uuid
+
+ALLOWED_SEVERITIES = {"LOW", "MEDIUM", "CRITICAL"}
+
+def normalize_severity(sev: str | None) -> str | None:
+    if not sev:
+        return None
+    s = sev.upper()
+    if s == "HIGH":
+        s = "CRITICAL"
+    if s in ALLOWED_SEVERITIES:
+        return s
+    return None
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -142,6 +154,8 @@ def read_authority_members(db: Session = Depends(get_db)):
 def create_incident(incident: schemas.IncidentCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # Layer 1: edge/keyword/semantic triage
     triage = run_ai_triage(incident.message or incident.type, silent=True)
+    llm_authority = classify_authority_llm(incident.message or incident.type)
+    computed_authority = derive_authority(triage.get("category"), llm_authority, incident.authority)
 
     # Layer 2: Gemini LLM enrichment
     payload = {
@@ -150,7 +164,7 @@ def create_incident(incident: schemas.IncidentCreate, background_tasks: Backgrou
     }
     enrichment = enrich_alert(payload) or {}
     llm = enrichment.get("llm_enrichment", {}) if isinstance(enrichment, dict) else {}
-    final_severity = llm.get("final_severity") or triage.get("severity")
+    final_severity = normalize_severity(llm.get("final_severity") or triage.get("severity"))
     officer_message = llm.get("officer_message")
     reasoning = llm.get("reasoning")
 
@@ -162,6 +176,7 @@ def create_incident(incident: schemas.IncidentCreate, background_tasks: Backgrou
         reasoning=reasoning,
         latitude=incident.latitude,
         longitude=incident.longitude,
+        authority_override=computed_authority,
     )
     return db_incident
 
@@ -212,8 +227,8 @@ def update_incident_priority(incident_id: int, req: schemas.IncidentPriorityUpda
     db_incident = db.query(models.Incident).filter(models.Incident.id == incident_id).first()
     if not db_incident:
         raise HTTPException(status_code=404, detail="Incident not found")
-    sev = (req.final_severity or "").upper()
-    if sev not in {"LOW", "MEDIUM", "HIGH"}:
+    sev = normalize_severity(req.final_severity)
+    if not sev:
         raise HTTPException(status_code=400, detail="Invalid severity")
     db_incident.final_severity = sev
     db.commit()
@@ -236,3 +251,44 @@ async def speech_to_english(file: UploadFile = File(...), source_lang: str = "au
     if not text:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {err}")
     return schemas.SpeechToTextResponse(translated_text=text, original_text=None)
+def derive_authority(category: str | None, preferred: str | None = None, requested: str | None = None) -> str:
+    """
+    Decide which authority should handle the incident.
+    Order: preferred (LLM) -> category -> client request.
+    Mapping: medical/health/injury/accident => health; harassment/security/threat/violence => security; default security.
+    """
+    def canonical(val: str | None) -> str | None:
+        if not val:
+            return None
+        v = val.lower()
+        if v in {"medical", "health", "injury", "accident"}:
+            return "health"
+        if v in {"harassment", "security", "threat", "violence"}:
+            return "security"
+        return None
+
+    for candidate in (preferred, category, requested):
+        mapped = canonical(candidate)
+        if mapped:
+            return mapped
+
+    cat = (category or "").lower()
+    if cat in {"medical", "health", "injury", "accident"}:
+        return "health"
+    if cat in {"harassment", "security", "threat", "violence"}:
+        return "security"
+    return "security"
+
+    """
+    Decide which authority should handle the incident.
+    - Medical/accident/injury → health
+    - Everything else → security
+    If the client sent 'health' or 'security', we still respect the derived result to avoid misroutes.
+    """
+    cat = (category or "").lower()
+    if cat in {"medical", "health", "injury", "accident"}:
+        return "health"
+    if cat in {"harassment", "security", "threat", "violence"}:
+        return "security"
+    # default fallback if unknown
+    return "security"

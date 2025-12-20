@@ -14,21 +14,28 @@ interface HealthDashboardProps {
   onLogout: () => void;
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
-  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
 }
 
 export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: HealthDashboardProps) {
   const now = new Date().toLocaleString();
+  const normalizeSeverity = (sev?: string) => {
+    const s = (sev || '').toLowerCase();
+    if (s === 'critical' || s === 'high') return 'critical';
+    if (s === 'medium') return 'medium';
+    return 'low';
+  };
   const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
   const resolvedIncidents = incidents.filter((i) => i.status === 'resolved');
-  const highCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'high').length;
-  const mediumCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'medium').length;
-  const lowCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'low').length;
+  const criticalCount = activeIncidents.filter((i) => normalizeSeverity(i.final_severity) === 'critical').length;
+  const mediumCount = activeIncidents.filter((i) => normalizeSeverity(i.final_severity) === 'medium').length;
+  const lowCount = activeIncidents.filter((i) => normalizeSeverity(i.final_severity) === 'low').length;
 
   const severityTone = (sev?: string) => {
-    if (!sev) return 'info';
-    if (sev.toLowerCase() === 'high' || sev.toLowerCase() === 'critical') return 'danger';
-    if (sev.toLowerCase() === 'medium') return 'warning';
+    const normalized = normalizeSeverity(sev);
+    if (!normalized) return 'info';
+    if (normalized === 'critical') return 'danger';
+    if (normalized === 'medium') return 'warning';
     return 'info';
   };
 
@@ -43,12 +50,13 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         }
-        style={{ paddingTop: 100, paddingBottom: 10 }}
+        style={{ marginTop: 32, paddingVertical: 28 }}
       />
+      <View style={styles.headerSpacer} />
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={{ paddingBottom: 160, paddingTop: 28, rowGap: 16 }}
+        contentContainerStyle={{ paddingBottom: 100, paddingTop: 0, rowGap: 12 }}
       >
         <View style={[styles.profileRow, { marginBottom: 16 }]}>
           <View>
@@ -66,7 +74,7 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
           </Card>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Critical</Text>
-            <Text style={[styles.statValue, { color: '#ef4444' }]}>{highCount}</Text>
+            <Text style={[styles.statValue, { color: '#ef4444' }]}>{criticalCount}</Text>
           </Card>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Medium</Text>
@@ -106,7 +114,12 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                       User: {incident.user_name ? `${incident.user_name}${incident.user_phone ? ` (${incident.user_phone})` : ''}` : incident.userId}
                     </Text>
                   </View>
-                  {incident.final_severity ? <Badge label={incident.final_severity} tone={severityTone(incident.final_severity)} /> : null}
+                  {incident.final_severity ? (
+                    <Badge
+                      label={normalizeSeverity(incident.final_severity).toUpperCase()}
+                      tone={severityTone(incident.final_severity)}
+                    />
+                  ) : null}
                 </View>
                 <View style={styles.messageBox}>
                   <Text style={styles.body}>{incident.message}</Text>
@@ -118,21 +131,21 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                     </View>
                   ) : null}
                  <View style={styles.priorityRow}>
-                   <Text style={styles.subtle}>Priority</Text>
-                   <View style={styles.priorityButtons}>
-                     {['high', 'medium', 'low'].map((level) => (
-                       <TouchableOpacity
-                         key={level}
-                         style={[
-                           styles.priorityChip,
-                           (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipActive : null,
-                         ]}
-                          onPress={() => onUpdatePriority(incident.id, level as 'high' | 'medium' | 'low')}
+                 <Text style={styles.subtle}>Priority</Text>
+                 <View style={styles.priorityButtons}>
+                    {['critical', 'medium', 'low'].map((level) => (
+                      <TouchableOpacity
+                        key={level}
+                        style={[
+                          styles.priorityChip,
+                          normalizeSeverity(incident.final_severity) === level ? styles.priorityChipActive : null,
+                        ]}
+                          onPress={() => onUpdatePriority(incident.id, level as 'critical' | 'medium' | 'low')}
                         >
                           <Text
                             style={[
                               styles.priorityChipText,
-                              (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipTextActive : null,
+                              normalizeSeverity(incident.final_severity) === level ? styles.priorityChipTextActive : null,
                             ]}
                           >
                             {level.toUpperCase()}
@@ -198,28 +211,13 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
             <Text style={styles.triageText}>Life-threatening: cardiac arrest, severe bleeding, trauma</Text>
           </View>
           <View style={styles.triageRow}>
-            <Badge label="High" tone="warning" />
+            <Badge label="Medium" tone="warning" />
             <Text style={styles.triageText}>Serious injuries, allergic reactions, respiratory distress</Text>
           </View>
           <View style={styles.triageRow}>
-            <Badge label="Medium" tone="info" />
+            <Badge label="Low" tone="info" />
             <Text style={styles.triageText}>Moderate pain, minor injuries</Text>
           </View>
-        </Card>
-
-        <Card style={{ gap: 10 }}>
-          <Text style={styles.title}>Resources</Text>
-          {[
-            { label: 'Ambulances Available', status: '3/3', tone: 'success' as const },
-            { label: 'AED Units', status: '12/12', tone: 'success' as const },
-            { label: 'First Aid Kits', status: '15/18', tone: 'warning' as const },
-            { label: 'Medical Staff On Duty', status: '8/8', tone: 'success' as const },
-          ].map((item) => (
-            <View key={item.label} style={styles.resourceRow}>
-              <Text style={styles.body}>{item.label}</Text>
-              <Badge label={item.status} tone={item.tone} />
-            </View>
-          ))}
         </Card>
       </ScrollView>
     </View>
@@ -340,16 +338,14 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
-  resourceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   logoutBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  headerSpacer: {
+    height: 32,
   },
   logoutText: {
     color: '#fff',

@@ -20,7 +20,7 @@ declare global {
 }
 
 export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: UserDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'sos' | 'history' | 'profile'>('sos');
+  const [activeTab, setActiveTab] = useState<'sos' | 'profile'>('sos');
   const [incidentMessage, setIncidentMessage] = useState('');
   const [coords, setCoords] = useState<{ lat?: number; lng?: number }>({});
 
@@ -189,28 +189,6 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
           </div>
         )}
 
-        {activeTab === 'history' && (
-          <Card className="p-6 bg-white rounded-2xl shadow-sm">
-            <h2 className="mb-4">Alert History</h2>
-            <div className="space-y-3">
-              <div className="p-4 border border-gray-200 rounded-xl">
-                <div className="flex justify-between items-start mb-2">
-                  <div>Medical Emergency</div>
-                  <Badge className="bg-green-100 text-green-700">Resolved</Badge>
-                </div>
-                <p className="text-sm text-gray-600">Dec 15, 2025 • 10:30 AM</p>
-              </div>
-              <div className="p-4 border border-gray-200 rounded-xl">
-                <div className="flex justify-between items-start mb-2">
-                  <div>Security Alert</div>
-                  <Badge className="bg-green-100 text-green-700">Resolved</Badge>
-                </div>
-                <p className="text-sm text-gray-600">Dec 10, 2025 • 3:45 PM</p>
-              </div>
-            </div>
-          </Card>
-        )}
-
         {activeTab === 'profile' && (
           <div className="space-y-4">
             <Card className="p-6 bg-white rounded-2xl shadow-sm">
@@ -259,14 +237,6 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
           >
             <AlertCircle className="w-6 h-6 mb-1" />
             <span className="text-xs">SOS</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`flex flex-col items-center ${activeTab === 'history' ? 'text-pink-500' : 'text-gray-400'
-              }`}
-          >
-            <Clock className="w-6 h-6 mb-1" />
-            <span className="text-xs">History</span>
           </button>
           <button
             onClick={() => setActiveTab('profile')}

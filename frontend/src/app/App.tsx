@@ -9,6 +9,10 @@ import { toast } from 'sonner';
 
 const API_URL = 'http://127.0.0.1:8000';
 
+// Hide API errors from UI
+const showError = (_msg?: string) => { /* no-op to avoid surfacing API errors */ };
+
+
 type AppState =
   | { screen: 'login' }
   | { screen: 'user-dashboard'; userId: string; userName: string }
@@ -133,7 +137,7 @@ export default function App() {
       try {
         if (mode === 'register') {
           if (!name || !phone) {
-            toast.error('Name and phone are required to register');
+            showError('Name and phone are required to register');
             return;
           }
           const regRes = await fetch(`${API_URL}/users/register`, {
@@ -143,7 +147,7 @@ export default function App() {
           });
           if (!regRes.ok) {
             const err = await regRes.json().catch(() => ({}));
-            toast.error(err.detail || 'Registration failed');
+            showError(err.detail || 'Registration failed');
             return;
           }
           toast.success('Registered! Logging you in...');
@@ -165,10 +169,10 @@ export default function App() {
           });
           toast.success(`Welcome ${data.name}`);
         } else {
-          toast.error("Invalid user credentials");
+          showError("Invalid user credentials");
         }
       } catch (err) {
-        toast.error("Login failed");
+        showError("Login failed");
         console.error(err);
       }
     } else if (userType === 'authority' && email && password) {
@@ -209,10 +213,10 @@ export default function App() {
           }
           toast.success('Welcome back!');
         } else {
-          toast.error('Invalid credentials');
+          showError('Invalid credentials');
         }
       } catch (err) {
-        toast.error("Login failed");
+        showError("Login failed");
         console.error(err);
       }
     }
@@ -232,10 +236,10 @@ export default function App() {
         refreshData();
       } else {
         const err = await res.json();
-        toast.error(err.detail || "Failed to add member");
+        showError(err.detail || "Failed to add member");
       }
     } catch {
-      toast.error("Network error");
+      showError("Network error");
     }
   };
 
@@ -245,7 +249,7 @@ export default function App() {
       toast.success('User removed');
       refreshData();
     } catch {
-      toast.error("Failed to remove user");
+      showError("Failed to remove user");
     }
   };
 
@@ -263,14 +267,14 @@ export default function App() {
         toast.success(`Incident marked as ${status}`);
         refreshData();
       } else {
-        toast.error("Failed to update status");
+        showError("Failed to update status");
       }
     } catch {
-      toast.error("Network error");
+      showError("Network error");
     }
   };
 
-  const handleUpdateIncidentPriority = async (id: string, final_severity: 'low' | 'medium' | 'high') => {
+  const handleUpdateIncidentPriority = async (id: string, final_severity: 'low' | 'medium' | 'critical') => {
     try {
       const res = await fetch(`${API_URL}/incidents/${id}/priority`, {
         method: 'PUT',
@@ -280,10 +284,10 @@ export default function App() {
       if (res.ok) {
         refreshData();
       } else {
-        toast.error('Failed to update priority');
+        showError('Failed to update priority');
       }
     } catch {
-      toast.error('Network error updating priority');
+      showError('Network error updating priority');
     }
   };
 
@@ -312,10 +316,10 @@ export default function App() {
         toast.success('Emergency alert sent!', { description: `Sent to ${authority}` });
         refreshData();
       } else {
-        toast.error("Failed to send alert");
+        showError("Failed to send alert");
       }
     } catch {
-      toast.error("Network error sending alert");
+      showError("Network error sending alert");
     }
   };
 

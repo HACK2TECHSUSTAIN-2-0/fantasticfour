@@ -17,7 +17,7 @@ interface AdminDashboardProps {
   members: AuthorityMember[];
   users: User[];
   incidents: Incident[];
-  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
 }
 
 export function AdminDashboard({
@@ -32,9 +32,16 @@ export function AdminDashboard({
   onUpdatePriority,
 }: AdminDashboardProps) {
   const now = new Date().toLocaleString();
-  const highCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'high').length;
-  const mediumCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'medium').length;
-  const lowCount = incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'low').length;
+  const normalizeSeverity = (sev?: string) => {
+    const s = (sev || '').toLowerCase();
+    if (s === 'critical' || s === 'high') return 'critical';
+    if (s === 'medium') return 'medium';
+    return 'low';
+  };
+  const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
+  const criticalCount = activeIncidents.filter((i) => normalizeSeverity(i.final_severity) === 'critical').length;
+  const mediumCount = activeIncidents.filter((i) => normalizeSeverity(i.final_severity) === 'medium').length;
+  const lowCount = activeIncidents.filter((i) => normalizeSeverity(i.final_severity) === 'low').length;
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newMemberRole, setNewMemberRole] = useState<'admin' | 'health' | 'security'>('health');
   const [newMemberName, setNewMemberName] = useState('');
@@ -42,12 +49,10 @@ export function AdminDashboard({
   const [newMemberPassword, setNewMemberPassword] = useState('');
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
-
   const stats = [
     { label: 'Total Users', value: users.length.toString(), color: '#2563eb' },
     { label: 'Active Incidents', value: activeIncidents.length.toString(), color: '#ef4444' },
-    { label: 'High Severity', value: highCount.toString(), color: '#ef4444' },
+    { label: 'Critical Severity', value: criticalCount.toString(), color: '#ef4444' },
     { label: 'Medium Severity', value: mediumCount.toString(), color: '#f59e0b' },
     { label: 'Low Severity', value: lowCount.toString(), color: '#16a34a' },
     { label: 'Health Staff', value: members.filter((m) => m.role === 'health').length.toString(), color: '#ec4899' },
@@ -80,11 +85,12 @@ export function AdminDashboard({
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         }
+        style={{ marginTop: 32, paddingVertical: 28 }}
       />
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={{ paddingBottom: 140, paddingTop: 16 }}
+        contentContainerStyle={{ paddingBottom: 160, paddingTop: 36 }}
       >
         <View style={styles.profileRow}>
           <View>
@@ -192,24 +198,24 @@ export function AdminDashboard({
                   </View>
                 ) : null}
                 <View style={styles.priorityRow}>
-                  <Text style={styles.subtle}>Priority</Text>
-                  <View style={styles.priorityButtons}>
-                    {['high', 'medium', 'low'].map((level) => (
-                      <TouchableOpacity
-                        key={level}
+                <Text style={styles.subtle}>Priority</Text>
+                <View style={styles.priorityButtons}>
+                  {['critical', 'medium', 'low'].map((level) => (
+                    <TouchableOpacity
+                      key={level}
+                      style={[
+                        styles.priorityChip,
+                        normalizeSeverity(incident.final_severity) === level ? styles.priorityChipActive : null,
+                      ]}
+                      onPress={() => onUpdatePriority(incident.id, level as 'critical' | 'medium' | 'low')}
+                    >
+                      <Text
                         style={[
-                          styles.priorityChip,
-                          (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipActive : null,
+                          styles.priorityChipText,
+                          normalizeSeverity(incident.final_severity) === level ? styles.priorityChipTextActive : null,
                         ]}
-                        onPress={() => onUpdatePriority(incident.id, level as 'high' | 'medium' | 'low')}
                       >
-                        <Text
-                          style={[
-                            styles.priorityChipText,
-                            (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipTextActive : null,
-                          ]}
-                        >
-                          {level.toUpperCase()}
+                        {level.toUpperCase()}
                         </Text>
                       </TouchableOpacity>
                     ))}

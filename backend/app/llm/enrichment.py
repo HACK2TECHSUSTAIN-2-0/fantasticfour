@@ -16,6 +16,62 @@ if not api_key:
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
 
+def classify_authority_llm(user_message: str) -> str | None:
+    """
+    Ask Gemini to classify an emergency message into 'medical' or 'security'.
+    Returns lowercase 'medical' or 'security', or None on failure.
+    """
+    if not api_key or not user_message:
+        return None
+
+    prompt = f"""Classify the emergency message into one of two authorities: "medical" or "security".
+Return ONLY valid JSON in this format (no markdown): {{"authority": "medical" | "security"}}.
+Message: "{user_message}"."""
+
+    try:
+        response = requests.post(
+            f"{GEMINI_API_URL}?key={api_key}",
+            json={
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [{"text": prompt}]
+                    }
+                ],
+                "generationConfig": {
+                    "temperature": 0.0,
+                    "maxOutputTokens": 50,
+                }
+            },
+            timeout=12,
+        )
+        if response.status_code != 200:
+            return None
+        data = response.json()
+        parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+        if not parts or "text" not in parts[0]:
+            return None
+        raw = parts[0]["text"].strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        try:
+            parsed = json.loads(raw)
+            auth = parsed.get("authority")
+            if isinstance(auth, str):
+                auth_l = auth.lower()
+                if auth_l in {"medical", "security"}:
+                    return auth_l
+        except Exception:
+            # best-effort regex if JSON parse fails
+            m = re.search(r'"authority"\s*:\s*"?(\w+)"?', raw, re.IGNORECASE)
+            if m:
+                auth_l = m.group(1).lower()
+                if auth_l in {"medical", "security"}:
+                    return auth_l
+    except Exception:
+        return None
+    return None
+
+
 def enrich_alert(payload: dict) -> dict:
     triage = payload["triage"]
 
@@ -34,11 +90,13 @@ Return JSON in this exact format (NO markdown, NO code blocks, just the raw JSON
 {{
     "severity": "LOW | MEDIUM | HIGH",
     "actions": [
-        "instruction 1",
-        "instruction 2",
-        "instruction 3"
+        "direct order to the attending officer 1",
+        "direct order to the attending officer 2",
+        "direct order to the attending officer 3"
     ]
-}}"""
+}}
+
+Write the actions as concise, imperative orders for the attending officer (e.g., "Secure the area", "Call EMS", "Stabilize patient"), never as instructions to the user."""
 
     try:
         # Call Gemini API
@@ -273,27 +331,27 @@ def fallback_response(payload: dict, reason: str = "LLM unavailable or unparsabl
         officer_message = (
             f"User explicitly denied needing help. "
             f"Message: '{triage['user_message']}'. "
-            "No action required."
+            "Officer: log refusal, do not intervene unless re-contacted."
         )
 
     elif sev == "HIGH":
         officer_message = (
             f"User reports a high-risk situation. "
             f"Message: '{triage['user_message']}'. "
-            "Treat as immediate threat. Contact user and dispatch assistance."
+            "Officer: treat as immediate threat, contact user, dispatch assistance, secure the scene."
         )
 
     elif sev == "MEDIUM":
         officer_message = (
             f"User reports a concerning situation. "
             f"Message: '{triage['user_message']}'. "
-            "Contact user promptly to assess risk and escalate if needed."
+            "Officer: call user promptly, assess risk, prepare to escalate."
         )
 
     else:  # LOW
         officer_message = (
             f"User reports: '{triage['user_message']}'. "
-            "No immediate action required."
+            "Officer: log and monitor; follow up if context seems unsafe."
         )
 
     return {

@@ -152,7 +152,7 @@ export default function App() {
     }
   };
 
-  const handleUpdateIncidentPriority = async (id: string, severity: 'low' | 'medium' | 'high') => {
+  const handleUpdateIncidentPriority = async (id: string, severity: 'low' | 'medium' | 'high' | 'critical') => {
     try {
       await updateIncidentPriority(id, severity);
       refreshData();

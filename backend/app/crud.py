@@ -61,13 +61,14 @@ def create_incident(
     reasoning: str | None = None,
     latitude: float | None = None,
     longitude: float | None = None,
+    authority_override: str | None = None,
 ):
     db_incident = models.Incident(
         user_id=incident.user_id,
         type=incident.type,
         message=incident.message,
         is_voice=incident.is_voice,
-        authority=incident.authority,
+        authority=authority_override or incident.authority,
         latitude=incident.latitude if incident.latitude is not None else latitude,
         longitude=incident.longitude if incident.longitude is not None else longitude,
         final_severity=final_severity,

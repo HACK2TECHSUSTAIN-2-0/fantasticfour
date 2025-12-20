@@ -14,14 +14,23 @@ interface SecurityDashboardProps {
   onLogout: () => void;
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
-  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'high') => void;
+  onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
 }
 
 const patrols: any[] = [];
 
 export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: SecurityDashboardProps) {
   const now = new Date().toLocaleString();
+  const normalizeSeverity = (sev?: string) => {
+    const s = (sev || '').toLowerCase();
+    if (s === 'critical' || s === 'high') return 'critical';
+    if (s === 'medium') return 'medium';
+    return 'low';
+  };
   const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
+  const criticalCount = activeIncidents.filter((i) => normalizeSeverity(i.final_severity) === 'critical').length;
+  const mediumCount = activeIncidents.filter((i) => normalizeSeverity(i.final_severity) === 'medium').length;
+  const lowCount = activeIncidents.filter((i) => normalizeSeverity(i.final_severity) === 'low').length;
 
   return (
     <View style={styles.screen}>
@@ -34,13 +43,15 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         }
+        style={{ marginTop: 32, paddingVertical: 28 }}
       />
+      <View style={styles.headerSpacer} />
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={{ paddingBottom: 140, paddingTop: 16 }}
+        contentContainerStyle={{ paddingBottom: 100, paddingTop: 0, rowGap: 12 }}
       >
-        <View style={styles.profileRow}>
+        <View style={[styles.profileRow, { marginBottom: 16 }]}>
           <View>
             <Text style={styles.subtle}>Security Staff</Text>
             <Text style={styles.heading}>{staffName}</Text>
@@ -49,22 +60,22 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
           <Badge label={`${activeIncidents.length} Active`} tone="danger" />
         </View>
 
-        <View style={styles.statGrid}>
+        <View style={[styles.statGrid, { marginBottom: 16 }]}>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Active Threats</Text>
             <Text style={[styles.statValue, { color: '#ef4444' }]}>{activeIncidents.length}</Text>
           </Card>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Low Severity</Text>
-            <Text style={[styles.statValue, { color: '#16a34a' }]}>{incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'low').length}</Text>
+            <Text style={[styles.statValue, { color: '#16a34a' }]}>{lowCount}</Text>
           </Card>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Medium Severity</Text>
-            <Text style={[styles.statValue, { color: '#2563eb' }]}>{incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'medium').length}</Text>
+            <Text style={[styles.statValue, { color: '#2563eb' }]}>{mediumCount}</Text>
           </Card>
           <Card style={styles.statCard}>
-            <Text style={styles.subtle}>High Severity</Text>
-            <Text style={[styles.statValue, { color: '#ef4444' }]}>{incidents.filter((i) => (i.final_severity || '').toLowerCase() === 'high').length}</Text>
+            <Text style={styles.subtle}>Critical Severity</Text>
+            <Text style={[styles.statValue, { color: '#ef4444' }]}>{criticalCount}</Text>
           </Card>
           <Card style={styles.statCard}>
             <Text style={styles.subtle}>Resolved</Text>
@@ -103,19 +114,19 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                   <View style={styles.priorityRow}>
                     <Text style={styles.subtle}>Priority</Text>
                     <View style={styles.priorityButtons}>
-                      {['high', 'medium', 'low'].map((level) => (
+                      {['critical', 'medium', 'low'].map((level) => (
                         <TouchableOpacity
                           key={level}
                           style={[
                             styles.priorityChip,
-                            (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipActive : null,
+                            normalizeSeverity(incident.final_severity) === level ? styles.priorityChipActive : null,
                           ]}
-                          onPress={() => onUpdatePriority(incident.id, level as 'high' | 'medium' | 'low')}
+                          onPress={() => onUpdatePriority(incident.id, level as 'critical' | 'medium' | 'low')}
                         >
                           <Text
                             style={[
                               styles.priorityChipText,
-                              (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipTextActive : null,
+                              normalizeSeverity(incident.final_severity) === level ? styles.priorityChipTextActive : null,
                             ]}
                           >
                             {level.toUpperCase()}
@@ -183,19 +194,19 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                 <View style={styles.priorityRow}>
                   <Text style={styles.subtle}>Priority</Text>
                   <View style={styles.priorityButtons}>
-                    {['high', 'medium', 'low'].map((level) => (
+                    {['critical', 'medium', 'low'].map((level) => (
                       <TouchableOpacity
                         key={level}
                         style={[
                           styles.priorityChip,
-                          (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipActive : null,
+                          normalizeSeverity(incident.final_severity) === level ? styles.priorityChipActive : null,
                         ]}
-                        onPress={() => onUpdatePriority(incident.id, level as 'high' | 'medium' | 'low')}
+                        onPress={() => onUpdatePriority(incident.id, level as 'critical' | 'medium' | 'low')}
                       >
                         <Text
                           style={[
                             styles.priorityChipText,
-                            (incident.final_severity || 'low').toLowerCase() === level ? styles.priorityChipTextActive : null,
+                            normalizeSeverity(incident.final_severity) === level ? styles.priorityChipTextActive : null,
                           ]}
                         >
                           {level.toUpperCase()}
@@ -213,8 +224,8 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
           <Text style={styles.title}>Response Protocols</Text>
           {[
             { title: 'Critical - Immediate Action', desc: 'Active threats, violence, weapons on campus.' },
-            { title: 'High - Priority Response', desc: 'Harassment, suspicious activity, unauthorized access.' },
-            { title: 'Medium - Standard Response', desc: 'Property damage, minor disturbances.' },
+            { title: 'Medium - Priority Response', desc: 'Harassment, suspicious activity, unauthorized access.' },
+            { title: 'Low - Standard Response', desc: 'Property damage, minor disturbances.' },
           ].map((item) => (
             <View key={item.title} style={styles.protocolRow}>
               <Text style={styles.body}>{item.title}</Text>
@@ -349,5 +360,8 @@ const styles = StyleSheet.create({
   logoutText: {
     color: '#fff',
     fontWeight: '700',
+  },
+  headerSpacer: {
+    height: 32,
   },
 });
