@@ -13,6 +13,7 @@ import {
   loginUser,
   registerUser,
   updateIncidentPriority,
+  markFalseAlarm,
 } from './src/api';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { UserDashboard } from './src/screens/UserDashboard';
@@ -161,6 +162,15 @@ export default function App() {
     }
   };
 
+  const handleFalseAlarm = async (id: string) => {
+    try {
+      await markFalseAlarm(id);
+      refreshData();
+    } catch (error: any) {
+      Alert.alert('Failed to record false alarm', error?.message || 'Unable to update incident');
+    }
+  };
+
   const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => {
     try {
       await createIncident(userId, type, message, isVoice, latitude, longitude);
@@ -226,6 +236,7 @@ export default function App() {
           incidents={incidents.filter((i) => i.authority === 'health')}
           onUpdateStatus={handleUpdateIncidentStatus}
           onUpdatePriority={handleUpdateIncidentPriority}
+          onFalseAlarm={handleFalseAlarm}
         />
       ) : null}
 
@@ -237,6 +248,7 @@ export default function App() {
           incidents={incidents.filter((i) => i.authority === 'security')}
           onUpdateStatus={handleUpdateIncidentStatus}
           onUpdatePriority={handleUpdateIncidentPriority}
+          onFalseAlarm={handleFalseAlarm}
         />
       ) : null}
 

@@ -30,9 +30,10 @@ interface SecurityDashboardProps {
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
   onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
+  onFalseAlarm: (id: string) => void;
 }
 
-export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: SecurityDashboardProps) {
+export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority, onFalseAlarm }: SecurityDashboardProps) {
   const now = new Date().toLocaleString();
   // Local state for UI only, logic handled by polling in App.tsx
   const activeIncidents = incidents.filter(i => i.status !== 'resolved');
@@ -268,6 +269,12 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl"
                     >
                       Resolve
+                    </Button>
+                    <Button
+                      onClick={() => onFalseAlarm(incident.id)}
+                      className="flex-1 bg-gray-100 text-gray-800 hover:bg-gray-200 rounded-xl border border-gray-300"
+                    >
+                      False Alarm
                     </Button>
                     <Button variant="outline" size="sm" className="rounded-xl flex-1">
                       <Phone className="w-4 h-4 mr-2" />

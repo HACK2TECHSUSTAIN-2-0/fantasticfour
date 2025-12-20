@@ -75,6 +75,22 @@ def choose_authority(message: str | None, incident_type: str | None, triage_cate
 
     # Fallback
     return "security"
+
+
+def adjust_severity_for_false_count(severity: str, false_count: int) -> str:
+    """
+    Adjust severity based on user's false alarm history.
+    Ranges:
+      - 0-4: no change
+      - 5-9: cap at MEDIUM
+      - 10+: cap at LOW
+    """
+    sev = normalize_severity(severity) or "LOW"
+    if false_count >= 10:
+        return "LOW"
+    if false_count >= 5:
+        return "MEDIUM" if sev in {"CRITICAL", "HIGH"} else sev
+    return sev
 from .services.translation import translate_to_english
 from .services.speech import transcribe_to_english
 from .ai.triage import run_ai_triage
@@ -116,6 +132,7 @@ def ensure_user_columns():
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users(email)"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS false_count INTEGER DEFAULT 0"))
 
 
 app = FastAPI()
@@ -242,7 +259,13 @@ def create_incident(incident: schemas.IncidentCreate, background_tasks: Backgrou
     }
     enrichment = enrich_alert(payload) or {}
     llm = enrichment.get("llm_enrichment", {}) if isinstance(enrichment, dict) else {}
-    final_severity = normalize_severity(llm.get("final_severity") or triage.get("severity"))
+    # Adjust severity based on user false-alarm history
+    user = crud.get_user(db, incident.user_id)
+    false_count = user.false_count if user else 0
+    final_severity = adjust_severity_for_false_count(
+        llm.get("final_severity") or triage.get("severity"),
+        false_count
+    )
     officer_message = llm.get("officer_message")
     reasoning = llm.get("reasoning")
 
@@ -257,6 +280,19 @@ def create_incident(incident: schemas.IncidentCreate, background_tasks: Backgrou
         authority_override=computed_authority,
     )
     return db_incident
+
+
+@app.put("/incidents/{incident_id}/false-alarm")
+def mark_false_alarm(incident_id: int, db: Session = Depends(get_db)):
+    inc = crud.get_incident(db, incident_id)
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    user = crud.increment_false_count(db, inc.user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    inc.status = "resolved"
+    db.commit()
+    return {"message": "False alarm recorded", "user_false_count": user.false_count}
 
 
 @app.get("/incidents/", response_model=list[schemas.Incident])

@@ -82,3 +82,15 @@ def create_incident(
 
 def get_incidents(db: Session):
     return db.query(models.Incident).all()
+
+def get_incident(db: Session, incident_id: int):
+    return db.query(models.Incident).filter(models.Incident.id == incident_id).first()
+
+def increment_false_count(db: Session, user_id: int):
+    user = get_user(db, user_id)
+    if not user:
+        return None
+    user.false_count = (user.false_count or 0) + 1
+    db.commit()
+    db.refresh(user)
+    return user

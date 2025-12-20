@@ -291,6 +291,19 @@ export default function App() {
     }
   };
 
+  const handleFalseAlarm = async (id: string) => {
+    try {
+      const res = await fetch(`${API_URL}/incidents/${id}/false-alarm`, { method: 'PUT' });
+      if (res.ok) {
+        refreshData();
+      } else {
+        showError('Failed to record false alarm');
+      }
+    } catch {
+      showError('Network error recording false alarm');
+    }
+  };
+
   const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => {
     let authority: 'health' | 'security' = 'security';
     if (type === 'medical' || type === 'accident') {
@@ -372,6 +385,7 @@ export default function App() {
           onLogout={handleLogout}
           incidents={incidents.filter(i => i.authority === 'health')}
           onUpdateStatus={handleUpdateIncidentStatus}
+          onFalseAlarm={handleFalseAlarm}
           onUpdatePriority={handleUpdateIncidentPriority}
         />
       )}
@@ -383,6 +397,7 @@ export default function App() {
           onLogout={handleLogout}
           incidents={incidents.filter(i => i.authority === 'security')}
           onUpdateStatus={handleUpdateIncidentStatus}
+          onFalseAlarm={handleFalseAlarm}
           onUpdatePriority={handleUpdateIncidentPriority}
         />
       )}

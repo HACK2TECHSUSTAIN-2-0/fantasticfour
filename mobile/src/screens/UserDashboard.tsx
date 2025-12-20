@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import * as Location from 'expo-location';
@@ -30,6 +30,9 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
     onSendIncident(type, payload || `SOS: ${type.toUpperCase()} ALERT`, false, coords.latitude, coords.longitude);
     if (!msg) setIncidentMessage('');
   };
+
+  const securityNumber = process.env.EXPO_PUBLIC_SECURITY_CONTACT || '+917358424309';
+  const medicalNumber = process.env.EXPO_PUBLIC_MEDICAL_CONTACT || '+917305946116';
 
   const stopAndTranscribe = async () => {
     try {
@@ -175,15 +178,20 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
               <Text style={styles.title}>Emergency Contacts</Text>
               <View style={{ gap: 10, marginTop: 8 }}>
                 {[
-                  { title: 'Campus Security', detail: '911' },
-                  { title: 'Medical Services', detail: 'Emergency' },
+                  { title: 'Campus Security', detail: securityNumber },
+                  { title: 'Medical Services', detail: medicalNumber },
                 ].map((item) => (
                   <View key={item.title} style={styles.contactRow}>
                     <View>
                       <Text style={styles.contactTitle}>{item.title}</Text>
                       <Text style={styles.contactDetail}>{item.detail}</Text>
                     </View>
-                    <PrimaryButton label="Call" variant="outline" style={{ paddingVertical: 10, paddingHorizontal: 16 }} />
+                    <PrimaryButton
+                      label="Call"
+                      variant="outline"
+                      style={{ paddingVertical: 10, paddingHorizontal: 16 }}
+                      onPress={() => Linking.openURL(`tel:${item.detail}`)}
+                    />
                   </View>
                 ))}
               </View>

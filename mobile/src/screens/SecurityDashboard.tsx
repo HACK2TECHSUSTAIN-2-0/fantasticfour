@@ -15,11 +15,12 @@ interface SecurityDashboardProps {
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
   onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
+  onFalseAlarm: (id: string) => void;
 }
 
 const patrols: any[] = [];
 
-export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: SecurityDashboardProps) {
+export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority, onFalseAlarm }: SecurityDashboardProps) {
   const now = new Date().toLocaleString();
   const normalizeSeverity = (sev?: string) => {
     const s = (sev || '').toLowerCase();
@@ -166,6 +167,12 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                     style={styles.actionBtn}
                   />
                   <PrimaryButton
+                    label="False Alarm"
+                    variant="outline"
+                    onPress={() => onFalseAlarm(incident.id)}
+                    style={styles.actionBtn}
+                  />
+                  <PrimaryButton
                     label="Contact User"
                     variant="outline"
                     onPress={() => {
@@ -180,40 +187,8 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                     onPress={() =>
                       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${incident.latitude || ''},${incident.longitude || ''}`)
                     }
-                    style={styles.actionBtn}
+                    style={[styles.actionBtnFull]}
                   />
-                  <PrimaryButton
-                    label="Street View"
-                    variant="outline"
-                    onPress={() =>
-                      Linking.openURL(`https://www.google.com/maps?q=&layer=c&cbll=${incident.latitude || ''},${incident.longitude || ''}`)
-                    }
-                    style={styles.actionBtn}
-                  />
-                </View>
-                <View style={styles.priorityRow}>
-                  <Text style={styles.subtle}>Priority</Text>
-                  <View style={styles.priorityButtons}>
-                    {['critical', 'medium', 'low'].map((level) => (
-                      <TouchableOpacity
-                        key={level}
-                        style={[
-                          styles.priorityChip,
-                          normalizeSeverity(incident.final_severity) === level ? styles.priorityChipActive : null,
-                        ]}
-                        onPress={() => onUpdatePriority(incident.id, level as 'critical' | 'medium' | 'low')}
-                      >
-                        <Text
-                          style={[
-                            styles.priorityChipText,
-                            normalizeSeverity(incident.final_severity) === level ? styles.priorityChipTextActive : null,
-                          ]}
-                        >
-                          {level.toUpperCase()}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
                 </View>
               </View>
             ))
@@ -303,6 +278,16 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flexBasis: '48%',
+    minHeight: 46,
+  },
+  actionBtnOutline: {
+    flexBasis: '48%',
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  actionBtnFull: {
+    flexBasis: '100%',
     minHeight: 46,
   },
   priorityRow: {

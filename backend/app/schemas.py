@@ -15,6 +15,7 @@ class UserCreate(UserBase):
 
 class User(UserBase):
     id: int # Backend uses int, frontend handles string formatting or we adapt
+    false_count: Optional[int] = 0
     
     class Config:
         from_attributes = True

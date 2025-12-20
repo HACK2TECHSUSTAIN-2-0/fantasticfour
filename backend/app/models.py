@@ -27,6 +27,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     phone = Column(String, nullable=True)
     hashed_password = Column(String, nullable=True)
+    false_count = Column(Integer, default=0)
 
 class AuthorityMember(Base):
     __tablename__ = "authority_members"

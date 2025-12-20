@@ -15,9 +15,10 @@ interface HealthDashboardProps {
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
   onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
+  onFalseAlarm: (id: string) => void;
 }
 
-export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: HealthDashboardProps) {
+export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority, onFalseAlarm }: HealthDashboardProps) {
   const now = new Date().toLocaleString();
   const normalizeSeverity = (sev?: string) => {
     const s = (sev || '').toLowerCase();
@@ -130,9 +131,9 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                       <Text style={styles.body}>{incident.officer_message}</Text>
                     </View>
                   ) : null}
-                 <View style={styles.priorityRow}>
-                 <Text style={styles.subtle}>Priority</Text>
-                 <View style={styles.priorityButtons}>
+                <View style={styles.priorityRow}>
+                  <Text style={styles.subtle}>Priority</Text>
+                  <View style={styles.priorityButtons}>
                     {['critical', 'medium', 'low'].map((level) => (
                       <TouchableOpacity
                         key={level}
@@ -150,11 +151,11 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                           >
                             {level.toUpperCase()}
                           </Text>
-                        </TouchableOpacity>
-                      ))}
-                   </View>
-                 </View>
-                  {incident.latitude && incident.longitude ? (
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                 {incident.latitude && incident.longitude ? (
                     <View style={{ marginTop: 10, gap: 8 }}>
                       <Text style={styles.subtle}>Lat/Lng: {incident.latitude.toFixed(4)}, {incident.longitude.toFixed(4)}</Text>
                       <PrimaryButton
@@ -171,25 +172,31 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                     </View>
                   )}
                 </View>
-                <View style={styles.actionRow}>
-                  {incident.status === 'pending' ? (
-                    <PrimaryButton
-                      label="Respond"
-                      onPress={() => onUpdateStatus(incident.id, 'responding')}
-                      style={styles.actionBtn}
-                    />
-                  ) : null}
-                  <PrimaryButton
-                    label="Resolve"
-                    onPress={() => onUpdateStatus(incident.id, 'resolved')}
-                    style={styles.actionBtn}
-                  />
-                  <PrimaryButton
-                    label="Contact User"
+               <View style={styles.actionRow}>
+                 {incident.status === 'pending' ? (
+                   <PrimaryButton
+                     label="Respond"
+                     onPress={() => onUpdateStatus(incident.id, 'responding')}
+                     style={styles.actionBtn}
+                   />
+                 ) : null}
+                 <PrimaryButton
+                   label="Resolve"
+                   onPress={() => onUpdateStatus(incident.id, 'resolved')}
+                   style={styles.actionBtn}
+                 />
+                 <PrimaryButton
+                    label="False Alarm"
                     variant="outline"
-                    onPress={() => Linking.openURL(`tel:${incident.user_phone || ''}`)}
+                    onPress={() => onFalseAlarm(incident.id)}
                     style={styles.actionBtn}
                   />
+                 <PrimaryButton
+                   label="Contact User"
+                   variant="outline"
+                   onPress={() => Linking.openURL(`tel:${incident.user_phone || ''}`)}
+                   style={styles.actionBtn}
+                 />
                   <PrimaryButton
                     label="Open in Google Maps"
                     variant="outline"
@@ -242,6 +249,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: colors.text,
+  },
+  actionBtnOutline: {
+    flex: 1,
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   subtle: {
     color: colors.muted,

@@ -30,9 +30,10 @@ interface HealthDashboardProps {
   incidents: Incident[];
   onUpdateStatus: (id: string, status: 'responding' | 'resolved') => void;
   onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
+  onFalseAlarm: (id: string) => void;
 }
 
-export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority }: HealthDashboardProps) {
+export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpdateStatus, onUpdatePriority, onFalseAlarm }: HealthDashboardProps) {
   const now = new Date().toLocaleString();
   const [priorityDraft, setPriorityDraft] = useState<Record<string, string>>({});
   const normalizeSeverity = (sev?: string) => {
@@ -280,16 +281,22 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                         Respond
                       </Button>
                     )}
-                    <Button
-                      onClick={() => onUpdateStatus(incident.id, 'resolved')}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl"
-                    >
-                      Resolve
-                    </Button>
-                    <Button variant="outline" size="sm" className="rounded-xl flex-1">
-                      <Phone className="w-4 h-4 mr-2" />
-                      Contact User
-                    </Button>
+                <Button
+                  onClick={() => onUpdateStatus(incident.id, 'resolved')}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl"
+                >
+                  Resolve
+                </Button>
+                <Button
+                  onClick={() => onFalseAlarm(incident.id)}
+                  className="flex-1 bg-gray-100 text-gray-800 hover:bg-gray-200 rounded-xl border border-gray-300"
+                >
+                  False Alarm
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-xl flex-1">
+                  <Phone className="w-4 h-4 mr-2" />
+                  Contact User
+                </Button>
                     <Button variant="outline" size="sm" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`, '_blank', 'noopener')} className="rounded-xl flex-1">
                       <MapPin className="w-4 h-4 mr-2" />
                       View Location

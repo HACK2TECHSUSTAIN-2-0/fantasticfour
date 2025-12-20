@@ -156,36 +156,6 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
               </div>
             </Card>
 
-            {/* Emergency Contacts */}
-            <Card className="p-6 bg-white rounded-2xl shadow-sm">
-              <h3 className="mb-4">Emergency Contacts</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                  <div className="flex items-center">
-                    <Phone className="w-5 h-5 text-red-500 mr-3" />
-                    <div>
-                      <div>Campus Security</div>
-                      <p className="text-sm text-gray-600">911</p>
-                    </div>
-                  </div>
-                  <Button size="sm" className="bg-green-500 hover:bg-green-600 rounded-full">
-                    Call
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                  <div className="flex items-center">
-                    <Activity className="w-5 h-5 text-blue-500 mr-3" />
-                    <div>
-                      <div>Medical Services</div>
-                      <p className="text-sm text-gray-600">Emergency</p>
-                    </div>
-                  </div>
-                  <Button size="sm" className="bg-green-500 hover:bg-green-600 rounded-full">
-                    Call
-                  </Button>
-                </div>
-              </div>
-            </Card>
           </div>
         )}
 

@@ -154,6 +154,13 @@ export async function updateIncidentPriority(id: string, severity: 'low' | 'medi
   await handleResponse<any>(res);
 }
 
+export async function markFalseAlarm(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/incidents/${id}/false-alarm`, {
+    method: 'PUT',
+  });
+  await handleResponse<any>(res);
+}
+
 export async function uploadSpeechToEnglish(audioUri: string, sourceLang = 'auto'): Promise<string> {
   const form = new FormData();
   const filename = audioUri.split('/').pop() || 'audio.m4a';
