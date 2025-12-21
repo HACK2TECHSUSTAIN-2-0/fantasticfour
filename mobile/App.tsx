@@ -14,7 +14,9 @@ import {
   registerUser,
   updateIncidentPriority,
   markFalseAlarm,
+  updateIncidentLocation,
 } from './src/api';
+import * as Location from 'expo-location';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { UserDashboard } from './src/screens/UserDashboard';
 import { AdminDashboard } from './src/screens/AdminDashboard';
@@ -31,6 +33,7 @@ export default function App() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [activeIncidentId, setActiveIncidentId] = useState<string | null>(null);
 
   // Restore session on mount
   useEffect(() => {
@@ -48,6 +51,42 @@ export default function App() {
       saveSession(appState);
     }
   }, [appState]);
+
+  // Location tracking effect
+  useEffect(() => {
+    let sub: Location.LocationSubscription | null = null;
+
+    if (activeIncidentId) {
+      const startTracking = async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+
+        sub = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
+          (loc) => {
+            updateIncidentLocation(activeIncidentId, loc.coords.latitude, loc.coords.longitude)
+              .catch(err => console.log("Loc update failed", err));
+          }
+        );
+      };
+      startTracking();
+    }
+
+    return () => {
+      if (sub) sub.remove();
+    };
+  }, [activeIncidentId]);
+
+  // Stop tracking if resolved
+  useEffect(() => {
+    if (activeIncidentId) {
+      const inc = incidents.find(i => i.id === activeIncidentId);
+      if (inc && inc.status === 'resolved') {
+        setActiveIncidentId(null);
+        Alert.alert("Incident Resolved", "Tracking stopped.");
+      }
+    }
+  }, [incidents, activeIncidentId]);
 
   const refreshData = useCallback(async () => {
     try {
@@ -153,7 +192,7 @@ export default function App() {
     }
   };
 
-  const handleUpdateIncidentPriority = async (id: string, severity: 'low' | 'medium' | 'high' | 'critical') => {
+  const handleUpdateIncidentPriority = async (id: string, severity: 'low' | 'medium' | 'critical') => {
     try {
       await updateIncidentPriority(id, severity);
       refreshData();
@@ -171,11 +210,13 @@ export default function App() {
     }
   };
 
-  const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => {
+  const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number): Promise<string | void> => {
     try {
-      await createIncident(userId, type, message, isVoice, latitude, longitude);
-      Alert.alert('Emergency alert sent');
+      const newInc = await createIncident(userId, type, message, isVoice, latitude, longitude);
+      setActiveIncidentId(newInc.id);
+      Alert.alert('Emergency alert sent', 'Sharing live location...');
       refreshData();
+      return newInc.id;
     } catch (error: any) {
       Alert.alert('Failed to send alert', error?.message || 'Unable to send alert');
     }

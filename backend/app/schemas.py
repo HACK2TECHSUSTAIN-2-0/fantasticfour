@@ -65,13 +65,21 @@ class Incident(IncidentBase):
     final_severity: Optional[str] = None
     officer_message: Optional[str] = None
     reasoning: Optional[str] = None
+    audio_evidence: Optional[str] = None
+    report_count: Optional[int] = 1
 
     class Config:
         from_attributes = True
 
 
+
 class IncidentPriorityUpdate(BaseModel):
     final_severity: str
+
+
+class IncidentLocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
 
 
 # Translation

@@ -55,3 +55,5 @@ class Incident(Base):
     reasoning = Column(String, nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
+    audio_evidence = Column(String, nullable=True)
+    report_count = Column(Integer, default=1)

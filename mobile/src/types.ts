@@ -35,4 +35,6 @@ export interface Incident {
   user_phone?: string;
   latitude?: number;
   longitude?: number;
+  audio_evidence?: string;
+  report_count?: number;
 }

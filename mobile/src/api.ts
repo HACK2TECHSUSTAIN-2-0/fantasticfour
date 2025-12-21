@@ -1,6 +1,6 @@
 import { AuthorityMember, Incident, User } from './types';
 
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://192.168.137.223:8000').replace(/\/$/, '');
 const STT_URL = (process.env.EXPO_PUBLIC_STT_URL || `${API_URL}/speech-to-english/`).replace(/\/$/, '') + '/';
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -126,7 +126,7 @@ export async function createIncident(
   isVoice: boolean,
   latitude?: number,
   longitude?: number
-): Promise<void> {
+): Promise<Incident> {
   const authority: 'health' | 'security' = ['medical', 'accident'].includes(type) ? 'health' : 'security';
 
   const res = await fetch(`${API_URL}/incidents/`, {
@@ -143,6 +143,32 @@ export async function createIncident(
     }),
   });
 
+  const data = await handleResponse<any>(res);
+  return {
+    id: String(data.id),
+    userId: String(data.user_id),
+    type: data.type,
+    message: data.message,
+    isVoice: Boolean(data.is_voice),
+    timestamp: data.timestamp,
+    status: data.status,
+    authority: data.authority,
+    officer_message: data.officer_message,
+    final_severity: data.final_severity,
+    reasoning: data.reasoning,
+    user_name: data.user_name,
+    user_phone: data.user_phone,
+    latitude: data.latitude,
+    longitude: data.longitude,
+  };
+}
+
+export async function updateIncidentLocation(id: string, latitude: number, longitude: number): Promise<void> {
+  const res = await fetch(`${API_URL}/incidents/${id}/location`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latitude, longitude }),
+  });
   await handleResponse<any>(res);
 }
 
@@ -182,6 +208,27 @@ export async function uploadSpeechToEnglish(audioUri: string, sourceLang = 'auto
 
   const data = await handleResponse<any>(res);
   return data?.translated_text || '';
+}
+
+export async function uploadIncidentEvidence(incidentId: string, audioUri: string): Promise<string> {
+  const form = new FormData();
+  const filename = audioUri.split('/').pop() || 'evidence.m4a';
+  form.append('file', {
+    uri: audioUri,
+    name: filename,
+    type: 'audio/m4a',
+  } as any);
+
+  const res = await fetch(`${API_URL}/incidents/${incidentId}/evidence`, {
+    method: 'POST',
+    body: form,
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  const data = await handleResponse<any>(res);
+  return data.url;
 }
 
 export function getApiBaseUrl() {

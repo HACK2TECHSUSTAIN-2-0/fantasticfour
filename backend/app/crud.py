@@ -63,6 +63,23 @@ def create_incident(
     longitude: float | None = None,
     authority_override: str | None = None,
 ):
+    # Deduplication Logic
+    # Check if this user already has an active (not resolved) incident of the same type
+    existing = db.query(models.Incident).filter(
+        models.Incident.user_id == incident.user_id,
+        models.Incident.type == incident.type,
+        models.Incident.status != "resolved"
+    ).first()
+
+    if existing:
+        existing.report_count = (existing.report_count or 1) + 1
+        # Optionally update timestamp or message? 
+        # For now, just increment tally and perhaps update the message if new info provided
+        # but the prompt specifically says "report count score", implying aggregation.
+        db.commit()
+        db.refresh(existing)
+        return existing
+
     db_incident = models.Incident(
         user_id=incident.user_id,
         type=incident.type,
@@ -74,6 +91,7 @@ def create_incident(
         final_severity=final_severity,
         officer_message=officer_message,
         reasoning=reasoning,
+        report_count=1,
     )
     db.add(db_incident)
     db.commit()

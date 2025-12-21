@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Badge } from './ui/badge';
 
 interface Incident {
   id: string;
@@ -22,6 +23,10 @@ interface Incident {
   reasoning?: string;
   user_name?: string;
   user_phone?: string;
+  latitude?: number;
+  longitude?: number;
+  audio_evidence?: string;
+  report_count?: number;
 }
 
 interface AdminDashboardProps {
@@ -327,10 +332,15 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                           {normalizeSeverity(incident.final_severity).toUpperCase()}
                         </span>
                       )}
+                      {(incident.report_count || 1) > 1 && (
+                        <Badge className="bg-purple-100 text-purple-700">
+                          {incident.report_count} Reports
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <div className="bg-white p-4 rounded-xl mb-3 border border-gray-100">
                     <p className="text-gray-700 mb-2"><strong>Report:</strong> {incident.message} {incident.isVoice && "(Voice)"}</p>
                     {incident.officer_message && (
                       <div className="mt-3 pt-3 border-t border-gray-200">
@@ -372,52 +382,81 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                     {incident.latitude && incident.longitude && (
                       <div className="mt-3 space-y-2">
                         <div className="text-sm text-gray-600">Location:</div>
-                      <div className="w-full h-56 rounded-xl overflow-hidden border border-gray-200 pointer-events-none">
-                        <iframe
-                          title={`map-${incident.id}`}
-                          src={`https://www.google.com/maps?q=${incident.latitude},${incident.longitude}&z=15&output=embed`}
-                          className="w-full h-full"
-                          allowFullScreen
-                          loading="lazy"
-                        />
+                        <div className="w-full h-56 rounded-xl overflow-hidden border border-gray-200 pointer-events-none">
+                          <iframe
+                            title={`map-${incident.id}`}
+                            src={`https://www.google.com/maps?q=${incident.latitude},${incident.longitude}&z=15&output=embed`}
+                            className="w-full h-full"
+                            allowFullScreen
+                            loading="lazy"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 text-sm underline"
+                          >
+                            Open in Google Maps
+                          </a>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`, '_blank', 'noopener')}
+                            className="rounded-xl"
+                          >
+                            View Location
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              window.open(
+                                `https://www.google.com/maps?q=&layer=c&cbll=${incident.latitude},${incident.longitude}`,
+                                '_blank',
+                                'noopener'
+                              )
+                            }
+                            className="rounded-xl"
+                          >
+                            Street View
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 text-sm underline"
-                        >
-                          Open in Google Maps
-                        </a>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`, '_blank', 'noopener')}
-                          className="rounded-xl"
-                        >
-                          View Location
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            window.open(
-                              `https://www.google.com/maps?q=&layer=c&cbll=${incident.latitude},${incident.longitude}`,
-                              '_blank',
-                              'noopener'
-                            )
-                          }
-                          className="rounded-xl"
-                        >
-                          Street View
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                    )}
+
+                    {(() => {
+                      if (!incident.audio_evidence) return null;
+                      let evidenceList: string[] = [];
+                      try {
+                        if (incident.audio_evidence.startsWith('[')) {
+                          evidenceList = JSON.parse(incident.audio_evidence);
+                        } else {
+                          evidenceList = [incident.audio_evidence];
+                        }
+                      } catch {
+                        evidenceList = [incident.audio_evidence];
+                      }
+
+                      return (
+                        <div className="mt-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm space-y-2">
+                          <div className="text-xs text-gray-500 font-bold mb-2 uppercase tracking-wide flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                            Black Box Evidence ({evidenceList.length})
+                          </div>
+                          {evidenceList.map((url, idx) => (
+                            <div key={idx} className="bg-gray-50 rounded-lg p-2">
+                              <div className="text-xs text-gray-400 mb-1">Clip {idx + 1}</div>
+                              <audio controls className="w-full h-8" src={`http://127.0.0.1:8000${url}`} />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                <div className="flex gap-2">
+                  <div className="flex gap-2">
                     <Button variant="outline" size="sm" className="flex-1">
                       <Users className="w-4 h-4 mr-2" />
                       Contact User
@@ -440,7 +479,7 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                       <MapPin className="w-4 h-4 mr-2" />
                       View Location
                     </Button>
-                 </div>
+                  </div>
                 </div>
               ))
             )}

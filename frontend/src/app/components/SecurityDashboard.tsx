@@ -21,6 +21,8 @@ interface Incident {
   user_phone?: string;
   latitude?: number;
   longitude?: number;
+  audio_evidence?: string;
+  report_count?: number;
 }
 
 interface SecurityDashboardProps {
@@ -163,7 +165,12 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                           {incident.final_severity && (
                             <Badge className={`${(incident.final_severity || '').toLowerCase() === 'critical' ? 'bg-red-500' : 'bg-yellow-500'
                               } text-white`}>
-                              {(incident.final_severity || '').toUpperCase() === 'HIGH' ? 'CRITICAL' : incident.final_severity}
+                              {normalizeSeverity(incident.final_severity).toUpperCase()}
+                            </Badge>
+                          )}
+                          {(incident.report_count || 1) > 1 && (
+                            <Badge className="bg-purple-100 text-purple-700">
+                              {incident.report_count} Reports
                             </Badge>
                           )}
                         </div>
@@ -240,6 +247,35 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                               </div>
                             </div>
                           )}
+
+                          {(() => {
+                            if (!incident.audio_evidence) return null;
+                            let evidenceList: string[] = [];
+                            try {
+                              if (incident.audio_evidence.startsWith('[')) {
+                                evidenceList = JSON.parse(incident.audio_evidence);
+                              } else {
+                                evidenceList = [incident.audio_evidence];
+                              }
+                            } catch {
+                              evidenceList = [incident.audio_evidence];
+                            }
+
+                            return (
+                              <div className="mt-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm space-y-2">
+                                <div className="text-xs text-gray-500 font-bold mb-2 uppercase tracking-wide flex items-center gap-1">
+                                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                  Black Box Evidence ({evidenceList.length})
+                                </div>
+                                {evidenceList.map((url, idx) => (
+                                  <div key={idx} className="bg-gray-50 rounded-lg p-2">
+                                    <div className="text-xs text-gray-400 mb-1">Clip {idx + 1}</div>
+                                    <audio controls className="w-full h-8" src={`http://127.0.0.1:8000${url}`} />
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex items-center gap-4 text-sm text-gray-600 flex-wrap">
@@ -304,7 +340,7 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
             )}
           </TabsContent>
 
-          
+
 
           <TabsContent value="protocols" className="space-y-4">
             <Card className="p-6 bg-white rounded-2xl shadow-sm">
@@ -402,6 +438,6 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </div >
   );
 }

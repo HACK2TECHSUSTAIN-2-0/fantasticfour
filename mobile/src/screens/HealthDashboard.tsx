@@ -7,6 +7,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { HeaderBar } from '../components/HeaderBar';
 import { Incident } from '../types';
 import { colors } from '../theme';
+import { getApiBaseUrl } from '../api';
 
 interface HealthDashboardProps {
   staffId: string;
@@ -131,16 +132,50 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                       <Text style={styles.body}>{incident.officer_message}</Text>
                     </View>
                   ) : null}
-                <View style={styles.priorityRow}>
-                  <Text style={styles.subtle}>Priority</Text>
-                  <View style={styles.priorityButtons}>
-                    {['critical', 'medium', 'low'].map((level) => (
-                      <TouchableOpacity
-                        key={level}
-                        style={[
-                          styles.priorityChip,
-                          normalizeSeverity(incident.final_severity) === level ? styles.priorityChipActive : null,
-                        ]}
+                  {(() => {
+                    if (!incident.audio_evidence) return null;
+                    let evidenceList: string[] = [];
+                    try {
+                      if (incident.audio_evidence.startsWith('[')) {
+                        evidenceList = JSON.parse(incident.audio_evidence);
+                      } else {
+                        evidenceList = [incident.audio_evidence];
+                      }
+                    } catch {
+                      evidenceList = [incident.audio_evidence];
+                    }
+                    return (
+                      <View style={{ marginTop: 10 }}>
+                        <Text style={[styles.subtle, { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 6 }]}>
+                          Black Box Evidence ({evidenceList.length})
+                        </Text>
+                        {evidenceList.map((url, idx) => (
+                          <PrimaryButton
+                            key={idx}
+                            label={`▶ Listen to Clip ${idx + 1}`}
+                            variant="outline"
+                            style={{ marginBottom: 8 }}
+                            onPress={() => Linking.openURL(`${getApiBaseUrl()}${url}`)}
+                          />
+                        ))}
+                      </View>
+                    );
+                  })()}
+                  {(incident.report_count || 1) > 1 && (
+                    <View style={{ marginTop: 8 }}>
+                      <Badge label={`${incident.report_count} Reports`} tone="info" />
+                    </View>
+                  )}
+                  <View style={styles.priorityRow}>
+                    <Text style={styles.subtle}>Priority</Text>
+                    <View style={styles.priorityButtons}>
+                      {['critical', 'medium', 'low'].map((level) => (
+                        <TouchableOpacity
+                          key={level}
+                          style={[
+                            styles.priorityChip,
+                            normalizeSeverity(incident.final_severity) === level ? styles.priorityChipActive : null,
+                          ]}
                           onPress={() => onUpdatePriority(incident.id, level as 'critical' | 'medium' | 'low')}
                         >
                           <Text
@@ -151,11 +186,11 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                           >
                             {level.toUpperCase()}
                           </Text>
-                      </TouchableOpacity>
-                    ))}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
-                </View>
-                 {incident.latitude && incident.longitude ? (
+                  {incident.latitude && incident.longitude ? (
                     <View style={{ marginTop: 10, gap: 8 }}>
                       <Text style={styles.subtle}>Lat/Lng: {incident.latitude.toFixed(4)}, {incident.longitude.toFixed(4)}</Text>
                       <PrimaryButton
@@ -172,31 +207,31 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                     </View>
                   )}
                 </View>
-               <View style={styles.actionRow}>
-                 {incident.status === 'pending' ? (
-                   <PrimaryButton
-                     label="Respond"
-                     onPress={() => onUpdateStatus(incident.id, 'responding')}
-                     style={styles.actionBtn}
-                   />
-                 ) : null}
-                 <PrimaryButton
-                   label="Resolve"
-                   onPress={() => onUpdateStatus(incident.id, 'resolved')}
-                   style={styles.actionBtn}
-                 />
-                 <PrimaryButton
+                <View style={styles.actionRow}>
+                  {incident.status === 'pending' ? (
+                    <PrimaryButton
+                      label="Respond"
+                      onPress={() => onUpdateStatus(incident.id, 'responding')}
+                      style={styles.actionBtn}
+                    />
+                  ) : null}
+                  <PrimaryButton
+                    label="Resolve"
+                    onPress={() => onUpdateStatus(incident.id, 'resolved')}
+                    style={styles.actionBtn}
+                  />
+                  <PrimaryButton
                     label="False Alarm"
                     variant="outline"
                     onPress={() => onFalseAlarm(incident.id)}
                     style={styles.actionBtn}
                   />
-                 <PrimaryButton
-                   label="Contact User"
-                   variant="outline"
-                   onPress={() => Linking.openURL(`tel:${incident.user_phone || ''}`)}
-                   style={styles.actionBtn}
-                 />
+                  <PrimaryButton
+                    label="Contact User"
+                    variant="outline"
+                    onPress={() => Linking.openURL(`tel:${incident.user_phone || ''}`)}
+                    style={styles.actionBtn}
+                  />
                   <PrimaryButton
                     label="Open in Google Maps"
                     variant="outline"

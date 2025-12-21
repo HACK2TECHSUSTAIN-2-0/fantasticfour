@@ -49,6 +49,8 @@ interface Incident {
   user_phone?: string;
   latitude?: number;
   longitude?: number;
+  audio_evidence?: string;
+  report_count?: number;
 }
 
 export default function App() {
@@ -86,6 +88,8 @@ export default function App() {
             user_phone: i.user_phone,
             latitude: i.latitude,
             longitude: i.longitude,
+            audio_evidence: i.audio_evidence,
+            report_count: i.report_count,
           }))
         );
       }
@@ -304,7 +308,7 @@ export default function App() {
     }
   };
 
-  const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => {
+  const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number): Promise<string | undefined> => {
     let authority: 'health' | 'security' = 'security';
     if (type === 'medical' || type === 'accident') {
       authority = 'health';
@@ -326,8 +330,10 @@ export default function App() {
       });
 
       if (res.ok) {
+        const data = await res.json();
         toast.success('Emergency alert sent!');
         refreshData();
+        return String(data.id);
       } else {
         showError("Failed to send alert");
       }

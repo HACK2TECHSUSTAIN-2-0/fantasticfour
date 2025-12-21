@@ -8,7 +8,7 @@ import { Textarea } from './ui/textarea';
 interface UserDashboardProps {
   userId: string;
   userName: string;
-  onSendIncident: (type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => void;
+  onSendIncident: (type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number) => Promise<string | void | undefined>;
   apiBaseUrl: string;
 }
 
@@ -44,11 +44,76 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
     }
   };
 
-  const handleSendIncident = (type: string, overrideMsg?: string) => {
+  const recordingRef = useRef(false);
+
+  const handleSendIncident = async (type: string, overrideMsg?: string) => {
     const msg = overrideMsg || incidentMessage.trim();
     if (!msg && type === 'general') return;
-    onSendIncident(type, msg || `SOS: ${type.toUpperCase()} ALERT`, false, coords.lat, coords.lng);
+
+    // 1. Send Alert
+    const incidentId = await onSendIncident(type, msg || `SOS: ${type.toUpperCase()} ALERT`, false, coords.lat, coords.lng);
     if (!overrideMsg) setIncidentMessage('');
+
+    // 2. Start Black Box Recording (Web) - Only if not already recording
+    if (incidentId && !recordingRef.current) {
+      console.log('Starting Black Box Evidence Recording (Web)...');
+      startBlackBoxRecording(incidentId);
+    }
+  };
+
+  const startBlackBoxRecording = async (incidentId: string) => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn("Media Devices API not supported.");
+      return;
+    }
+
+    try {
+      recordingRef.current = true;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/mp4' }); // or audio/webm
+        const file = new File([blob], "evidence.m4a", { type: 'audio/mp4' });
+
+        console.log('Uploading Evidence...', file.size);
+        const form = new FormData();
+        form.append('file', file);
+
+        try {
+          await fetch(`${apiBaseUrl}/incidents/${incidentId}/evidence`, {
+            method: 'POST',
+            body: form,
+          });
+          console.log('Evidence Uploaded.');
+        } catch (err) {
+          console.error("Upload failed", err);
+        }
+
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+        recordingRef.current = false;
+      };
+
+      mediaRecorder.start();
+
+      // Stop after 30 seconds
+      setTimeout(() => {
+        if (mediaRecorder.state !== 'inactive') {
+          console.log('Stopping Black Box Recording...');
+          mediaRecorder.stop();
+        }
+      }, 30000);
+
+    } catch (err) {
+      console.error("Failed to start recording", err);
+      recordingRef.current = false;
+    }
   };
 
   const handleVoiceInput = (type: string) => {
@@ -85,9 +150,49 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
       (pos) => {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
-      () => {},
+      () => { },
       { enableHighAccuracy: true, timeout: 5000 }
     );
+  }, []);
+
+  // Web Fall Detection
+  React.useEffect(() => {
+    let lastFallTime = 0;
+    const handleMotion = (event: any) => {
+      const acc = event.accelerationIncludingGravity;
+      if (!acc) return;
+
+      const totalForce = Math.sqrt(
+        (acc.x || 0) ** 2 +
+        (acc.y || 0) ** 2 +
+        (acc.z || 0) ** 2
+      );
+
+      // Standard gravity is ~9.8 m/s^2. 
+      // 3g impact is ~29.4 m/s^2.
+      if (totalForce > 30) {
+        const now = Date.now();
+        if (now - lastFallTime > 5000) { // Limit to one alert per 5s
+          lastFallTime = now;
+          console.log('High impact detected (Web):', totalForce);
+          // Auto-trigger accident report
+          handleSendIncident('accident', 'Automated Fall/Crash Detection (Web Sensor)');
+          alert('High impact detected! Emergency alert sent.');
+        }
+      }
+    };
+
+    // DeviceMotion requires User Permission on iOS 13+
+    // For now we just attach the listener if available
+    if (window.DeviceMotionEvent) {
+      window.addEventListener('devicemotion', handleMotion);
+    }
+
+    return () => {
+      if (window.DeviceMotionEvent) {
+        window.removeEventListener('devicemotion', handleMotion);
+      }
+    };
   }, []);
 
   return (

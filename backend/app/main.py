@@ -123,6 +123,8 @@ def ensure_incident_columns():
         conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS reasoning VARCHAR"))
         conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION"))
         conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION"))
+        conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS audio_evidence VARCHAR"))
+        conn.execute(text("ALTER TABLE incidents ADD COLUMN IF NOT EXISTS report_count INTEGER DEFAULT 1"))
 
 
 def ensure_user_columns():
@@ -136,6 +138,12 @@ def ensure_user_columns():
 
 
 app = FastAPI()
+
+# Mount static files to serve evidence
+from fastapi.staticfiles import StaticFiles
+import os
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -320,6 +328,8 @@ def read_incidents(db: Session = Depends(get_db)):
             "officer_message": getattr(inc, "officer_message", None),
             "final_severity": getattr(inc, "final_severity", None),
             "reasoning": getattr(inc, "reasoning", None),
+            "audio_evidence": getattr(inc, "audio_evidence", None),
+            "report_count": getattr(inc, "report_count", 1),
         }
         enriched.append(inc_data)
     return enriched
@@ -350,6 +360,18 @@ def update_incident_priority(incident_id: int, req: schemas.IncidentPriorityUpda
     return {"message": "Priority updated", "final_severity": db_incident.final_severity}
 
 
+@app.put("/incidents/{incident_id}/location")
+def update_incident_location(incident_id: int, req: schemas.IncidentLocationUpdate, db: Session = Depends(get_db)):
+    db_incident = db.query(models.Incident).filter(models.Incident.id == incident_id).first()
+    if not db_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    
+    db_incident.latitude = req.latitude
+    db_incident.longitude = req.longitude
+    db.commit()
+    return {"message": "Location updated"}
+
+
 @app.post("/translate/", response_model=schemas.TranslateResponse)
 def translate_text(req: schemas.TranslateRequest):
     if not req.text:
@@ -365,3 +387,48 @@ async def speech_to_english(file: UploadFile = File(...), source_lang: str = "au
     if not text:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {err}")
     return schemas.SpeechToTextResponse(translated_text=text, original_text=None)
+
+
+@app.post("/incidents/{incident_id}/evidence")
+async def upload_evidence(incident_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    db_incident = crud.get_incident(db, incident_id)
+    if not db_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    
+    # Simple file save (in production, use S3/Cloud Storage)
+    filename = f"evidence_{incident_id}_{uuid.uuid4().hex[:8]}.m4a"
+    import os
+    os.makedirs("uploads", exist_ok=True)
+    file_path = os.path.join("uploads", filename)
+    
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+        
+    # Construct URL (assuming local serving for demo)
+    # In a real app, this would be a cloud URL
+    file_url = f"/uploads/{filename}"
+    
+    import json
+    existing_evidence = db_incident.audio_evidence
+    evidence_list = []
+    
+    if existing_evidence:
+        try:
+            # Try parsing as JSON list
+            evidence_list = json.loads(existing_evidence)
+            if not isinstance(evidence_list, list):
+                # If valid JSON but not list, treat as single item list
+                evidence_list = [existing_evidence]
+        except json.JSONDecodeError:
+            # Not JSON, treat as old single URL string
+            evidence_list = [existing_evidence]
+    
+    evidence_list.append(file_url)
+    db_incident.audio_evidence = json.dumps(evidence_list)
+    db.commit()
+    
+    return {"message": "Evidence uploaded", "url": file_url}
+
+# Add static mount for uploads if not already present? 
+# We'll just rely on the API serving it or add a quick static mount if needed.
+# For now, let's just return the URL.
