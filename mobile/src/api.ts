@@ -1,6 +1,7 @@
 import { AuthorityMember, Incident, User } from './types';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+const STT_URL = (process.env.EXPO_PUBLIC_STT_URL || `${API_URL}/speech-to-english/`).replace(/\/$/, '') + '/';
 
 async function handleResponse<T>(res: Response): Promise<T> {
   const contentType = res.headers.get('content-type');
@@ -171,7 +172,7 @@ export async function uploadSpeechToEnglish(audioUri: string, sourceLang = 'auto
   } as any);
   form.append('source_lang', sourceLang);
 
-  const res = await fetch(`${API_URL}/speech-to-english/`, {
+  const res = await fetch(STT_URL, {
     method: 'POST',
     body: form,
     headers: {

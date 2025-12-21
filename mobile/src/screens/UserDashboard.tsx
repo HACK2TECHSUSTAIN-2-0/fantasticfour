@@ -23,6 +23,8 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [coords, setCoords] = useState<{ latitude?: number; longitude?: number }>({});
+  const backgroundListenCancelRef = useRef(false);
+  const hotwordInProgressRef = useRef(false);
 
   const triggerSend = (type: string, msg?: string) => {
     const payload = msg ?? incidentMessage.trim();
@@ -33,6 +35,8 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
 
   const securityNumber = process.env.EXPO_PUBLIC_SECURITY_CONTACT || '+917358424309';
   const medicalNumber = process.env.EXPO_PUBLIC_MEDICAL_CONTACT || '+917305946116';
+  const hotwordMedical = (process.env.EXPO_PUBLIC_HOTWORD_MEDICAL || 'One chocolate please').toLowerCase();
+  const hotwordSecurity = (process.env.EXPO_PUBLIC_HOTWORD_SECURITY || 'One butterscotch please').toLowerCase();
 
   const stopAndTranscribe = async () => {
     try {
@@ -106,9 +110,82 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
     })();
   }, []);
 
+  const normalizeHotword = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/\\b2\\b/g, 'two')
+      .replace(/\\b1\\b/g, 'one')
+      .replace(/[^a-z0-9\\s]/g, '')
+      .trim();
+
+  const matchesHotword = (heard: string, target: string) => {
+    const h = normalizeHotword(heard);
+    const t = normalizeHotword(target);
+    if (!h || !t) return false;
+    if (h.includes(t) || t.includes(h)) return true;
+    const hWords = new Set(h.split(/\s+/).filter(Boolean));
+    const tWords = new Set(t.split(/\s+/).filter(Boolean));
+    const intersection = [...hWords].filter((w) => tWords.has(w)).length;
+    const score = intersection / Math.max(tWords.size, 1);
+    return score >= 0.3; // allow partial overlap (subset) and noise
+  };
+
+  // Background hotword listener (best-effort while app is active)
+  useEffect(() => {
+    backgroundListenCancelRef.current = false;
+    const listenLoop = async () => {
+      const perm = await Audio.requestPermissionsAsync();
+      if (!perm.granted) {
+        console.warn('Microphone permission not granted; hotword listening disabled.');
+        return;
+      }
+      while (!backgroundListenCancelRef.current) {
+        if (isRecording || hotwordInProgressRef.current) {
+          await new Promise((r) => setTimeout(r, 1000));
+          continue;
+        }
+        hotwordInProgressRef.current = true;
+        let rec: Audio.Recording | null = null;
+        try {
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: true,
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: false,
+          });
+          const { recording: recObj } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+          rec = recObj;
+          await new Promise((r) => setTimeout(r, 4000));
+          await rec.stopAndUnloadAsync();
+          const uri = rec.getURI();
+          if (uri) {
+            const text = (await uploadSpeechToEnglish(uri)).toLowerCase().trim();
+            console.log('[HOTWORD] heard:', text);
+            if (matchesHotword(text, hotwordMedical)) {
+              onSendIncident('medical', 'Medical emergency (hotword)', true, coords.latitude, coords.longitude);
+            } else if (matchesHotword(text, hotwordSecurity)) {
+              onSendIncident('security', 'Security emergency (hotword)', true, coords.latitude, coords.longitude);
+            }
+          }
+        } catch {
+          // ignore errors to keep loop alive
+        } finally {
+          if (rec) {
+            try { await rec.stopAndUnloadAsync(); } catch {}
+          }
+          hotwordInProgressRef.current = false;
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+    };
+    listenLoop();
+    return () => {
+      backgroundListenCancelRef.current = true;
+    };
+  }, [coords.latitude, coords.longitude, hotwordMedical, hotwordSecurity, onSendIncident, isRecording]);
+
   return (
     <View style={styles.screen}>
-      <LinearGradient colors={gradients.purplePink} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
+      <LinearGradient colors={gradients.purplePink as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
         <View style={{ paddingTop: 24, paddingBottom: 12 }}>
           <Text style={styles.headerTitle}>Welcome, {userName}</Text>
           <Text style={styles.headerSubtitle}>Stay Safe, Stay Connected</Text>
@@ -256,6 +333,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  navSpacer: {
+    height: 24,
   },
   header: {
     paddingHorizontal: 20,

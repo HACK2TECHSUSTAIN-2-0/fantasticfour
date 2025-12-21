@@ -21,13 +21,14 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.fantasticfour.app",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       }
     },
     "extra": {
       "eas": {
-        "projectId": "fantasticfour-mobile-local"
+        "projectId": "937f27f0-2767-44cf-b009-36526e83fe34"
       }
     }
   }
