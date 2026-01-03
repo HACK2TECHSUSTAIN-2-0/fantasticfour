@@ -3,6 +3,8 @@ import { UserPlus, Users, Activity, Shield, LogOut, Settings, Bell, TrendingUp, 
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { API_URL } from '../../config';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -448,7 +450,7 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                           {evidenceList.map((url, idx) => (
                             <div key={idx} className="bg-gray-50 rounded-lg p-2">
                               <div className="text-xs text-gray-400 mb-1">Clip {idx + 1}</div>
-                              <audio controls className="w-full h-8" src={`http://127.0.0.1:8000${url}`} />
+                              <audio controls className="w-full h-8" src={`${API_URL}${url}`} />
                             </div>
                           ))}
                         </div>

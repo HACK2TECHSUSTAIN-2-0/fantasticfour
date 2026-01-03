@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { API_URL } from '../../config';
 
 interface Incident {
   id: string;
@@ -270,7 +271,7 @@ export function SecurityDashboard({ staffId, staffName, onLogout, incidents, onU
                                 {evidenceList.map((url, idx) => (
                                   <div key={idx} className="bg-gray-50 rounded-lg p-2">
                                     <div className="text-xs text-gray-400 mb-1">Clip {idx + 1}</div>
-                                    <audio controls className="w-full h-8" src={`http://127.0.0.1:8000${url}`} />
+                                    <audio controls className="w-full h-8" src={`${API_URL}${url}`} />
                                   </div>
                                 ))}
                               </div>

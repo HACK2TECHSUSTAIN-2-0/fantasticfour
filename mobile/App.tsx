@@ -23,7 +23,8 @@ import { AdminDashboard } from './src/screens/AdminDashboard';
 import { HealthDashboard } from './src/screens/HealthDashboard';
 import { SecurityDashboard } from './src/screens/SecurityDashboard';
 import { AppState, AuthorityMember, Incident, User } from './src/types';
-import { clearSession, loadSession, saveSession } from './src/utils/storage';
+import { clearSession, loadSession, saveSession, saveOfflineIncident, getOfflineIncidents, removeOfflineIncident } from './src/utils/storage';
+import { runOfflineEdgeTriage } from './src/ai/OfflineTriage';
 import { colors } from './src/theme';
 
 export default function App() {
@@ -98,6 +99,37 @@ export default function App() {
       setUsers(usersRes);
       setMembers(membersRes);
       setIncidents(incidentsRes);
+
+      // ---------------------------------------------------------
+      // 🔄 AUTO-SYNC OFFLINE INCIDENTS
+      // ---------------------------------------------------------
+      const offlineQueue = await getOfflineIncidents();
+      if (offlineQueue.length > 0) {
+        console.log(`Sync: Found ${offlineQueue.length} offline incidents to upload.`);
+
+        for (const offlineInc of offlineQueue) {
+          try {
+            console.log(`Sync: Uploading ${offlineInc.id}...`);
+            await createIncident(
+              offlineInc.userId,
+              offlineInc.type,
+              offlineInc.message,
+              offlineInc.isVoice,
+              offlineInc.latitude,
+              offlineInc.longitude
+            );
+
+            // Remove from queue on success
+            await removeOfflineIncident(offlineInc.id);
+            console.log(`Sync: Uploaded ${offlineInc.id} successfully.`);
+
+            Alert.alert("✅ Sync Complete", `Your offline SOS has been uploaded to the server.`);
+          } catch (syncErr) {
+            console.error("Sync: Failed to upload incident, will retry later.", syncErr);
+            break; // Stop syncing if connection drops again
+          }
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch data', error);
     }
@@ -218,7 +250,41 @@ export default function App() {
       refreshData();
       return newInc.id;
     } catch (error: any) {
-      Alert.alert('Failed to send alert', error?.message || 'Unable to send alert');
+      console.log('Online incident creation failed, falling back to EDGE AI', error);
+
+      // ---------------------------------------------------------
+      // 📴 OFFLINE EDGE AI FALLBACK
+      // ---------------------------------------------------------
+      const triageResult = runOfflineEdgeTriage(message, false);
+      const offlineId = `offline_${Date.now()}`;
+
+      const offlineIncident: Incident = {
+        id: offlineId,
+        userId: userId,
+        type: type,
+        message: message,
+        isVoice: isVoice,
+        timestamp: new Date().toISOString(),
+        status: 'pending',
+        authority: ['medical', 'accident', 'health'].includes(triageResult.category) ? 'health' : 'security',
+        final_severity: triageResult.severity,
+        reasoning: `[OFFLINE EDGE AI] Source: ${triageResult.classification_source}`,
+        latitude: latitude,
+        longitude: longitude,
+      };
+
+      await saveOfflineIncident(offlineIncident);
+
+      // Update local state immediately so user sees it
+      setIncidents(prev => [offlineIncident, ...prev]);
+      setActiveIncidentId(offlineId);
+
+      Alert.alert(
+        '⚠️ Offline Mode Detected',
+        `Network failed. \n\n✅ EDGE AI processed your alert locally.\nSeverity: ${triageResult.severity}\n\nYour SOS is queued and will auto-send when connection is restored.`
+      );
+
+      return offlineId;
     }
   };
 

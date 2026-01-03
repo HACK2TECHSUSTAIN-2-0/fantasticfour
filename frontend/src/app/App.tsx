@@ -7,7 +7,7 @@ import { SecurityDashboard } from './components/SecurityDashboard';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
 
-const API_URL = 'http://127.0.0.1:8000';
+import { API_URL } from '../config';
 
 // Hide API errors from UI
 const showError = (_msg?: string) => { /* no-op to avoid surfacing API errors */ };
