@@ -253,6 +253,38 @@ export function HealthDashboard({ staffId, staffName, onLogout, incidents, onUpd
                                   loading="lazy"
                                 />
                               </div>
+                              <div className="flex gap-2">
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-600 text-sm underline"
+                                >
+                                  Open in Google Maps
+                                </a>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${incident.latitude},${incident.longitude}`, '_blank', 'noopener')}
+                                  className="rounded-xl"
+                                >
+                                  View Location
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    window.open(
+                                      `https://www.google.com/maps?q=&layer=c&cbll=${incident.latitude},${incident.longitude}`,
+                                      '_blank',
+                                      'noopener'
+                                    )
+                                  }
+                                  className="rounded-xl"
+                                >
+                                  Street View
+                                </Button>
+                              </div>
                             </div>
                           )}
 

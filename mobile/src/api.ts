@@ -1,6 +1,6 @@
 import { AuthorityMember, Incident, User } from './types';
 
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://192.168.137.223:8000').replace(/\/$/, '');
+const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://shivaranjane-fantastic-backend.hf.space').replace(/\/$/, '');
 const STT_URL = (process.env.EXPO_PUBLIC_STT_URL || `${API_URL}/speech-to-english/`).replace(/\/$/, '') + '/';
 
 async function handleResponse<T>(res: Response): Promise<T> {
