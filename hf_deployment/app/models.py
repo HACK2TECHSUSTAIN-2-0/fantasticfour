@@ -27,6 +27,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     phone = Column(String, nullable=True)
     hashed_password = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=True)
     false_count = Column(Integer, default=0)
     hotwords = Column(String, default="{}") # JSON string mapping hotword -> authority
 
@@ -59,7 +61,7 @@ class Incident(Base):
     audio_evidence = Column(String, nullable=True)
     report_count = Column(Integer, default=1)
 
-class Feedback(Base):
+class Feedback(BaseModel):
     __tablename__ = "feedback"
 
     id = Column(Integer, primary_key=True, index=True)
