@@ -399,7 +399,6 @@ def update_incident_priority(incident_id: int, req: schemas.IncidentPriorityUpda
     if not sev:
         raise HTTPException(status_code=400, detail="Invalid severity")
     db_incident.final_severity = sev
-    db_incident.final_severity = sev
     db.commit()
     db.refresh(db_incident)
 
