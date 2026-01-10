@@ -384,7 +384,7 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                     </div>
 
                     <div className="mt-3">
-                      <label className="text-xs text-gray-600">Reassign Authority</label>
+                      <label className="text-xs text-gray-600">Reassign Authority </label>
                       <div className="flex gap-2 mt-1">
                         <Button
                           variant={incident.authority === 'security' ? 'default' : 'outline'}
