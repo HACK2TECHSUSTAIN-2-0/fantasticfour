@@ -11,11 +11,14 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     email: str
     phone: str
+    phone: str
     password: str
+    hotwords: Optional[str] = "{}"
 
 class User(UserBase):
     id: int # Backend uses int, frontend handles string formatting or we adapt
     false_count: Optional[int] = 0
+    hotwords: Optional[str] = "{}"
     
     class Config:
         from_attributes = True
@@ -79,7 +82,17 @@ class IncidentPriorityUpdate(BaseModel):
 
 class IncidentLocationUpdate(BaseModel):
     latitude: float
+    latitude: float
     longitude: float
+
+
+class IncidentAuthorityUpdate(BaseModel):
+    authority: str
+
+
+class UserHotwordsUpdate(BaseModel):
+    hotwords: str
+
 
 
 # Translation

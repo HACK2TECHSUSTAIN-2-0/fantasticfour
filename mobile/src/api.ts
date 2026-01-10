@@ -137,7 +137,7 @@ export async function createIncident(
       type,
       message,
       is_voice: isVoice,
-      authority,
+      authority, // backend might override based on triage or 'general' handling
       latitude,
       longitude,
     }),
@@ -184,6 +184,31 @@ export async function updateIncidentPriority(id: string, severity: 'low' | 'medi
 export async function markFalseAlarm(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/incidents/${id}/false-alarm`, {
     method: 'PUT',
+  });
+  await handleResponse<any>(res);
+  await handleResponse<any>(res);
+}
+
+export async function updateIncidentAuthority(id: string, authority: 'health' | 'security'): Promise<void> {
+  const res = await fetch(`${API_URL}/incidents/${id}/authority`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ authority }),
+  });
+  await handleResponse<any>(res);
+}
+
+export async function getUserDetails(id: string): Promise<User> {
+  const res = await fetch(`${API_URL}/users/${id}`);
+  const data = await handleResponse<any>(res);
+  return { ...data, id: String(data.id) };
+}
+
+export async function updateUserHotwords(id: string, hotwords: string): Promise<void> {
+  const res = await fetch(`${API_URL}/users/${id}/hotwords`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hotwords }),
   });
   await handleResponse<any>(res);
 }

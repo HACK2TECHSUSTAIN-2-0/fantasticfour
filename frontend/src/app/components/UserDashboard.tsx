@@ -23,6 +23,57 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
   const [activeTab, setActiveTab] = useState<'sos' | 'profile'>('sos');
   const [incidentMessage, setIncidentMessage] = useState('');
   const [coords, setCoords] = useState<{ lat?: number; lng?: number }>({});
+  const [hotwords, setHotwords] = useState<Record<string, string>>({});
+  const [newHotword, setNewHotword] = useState('');
+  const [newHotwordType, setNewHotwordType] = useState('security');
+
+  React.useEffect(() => {
+    fetchHotwords();
+  }, [userId]);
+
+  const fetchHotwords = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/users/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.hotwords) {
+          try {
+            setHotwords(JSON.parse(data.hotwords));
+          } catch {
+            setHotwords({});
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateHotwords = async (updatedHotwords: Record<string, string>) => {
+    setHotwords(updatedHotwords);
+    try {
+      await fetch(`${apiBaseUrl}/users/${userId}/hotwords`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hotwords: JSON.stringify(updatedHotwords) }),
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const addHotword = () => {
+    if (!newHotword) return;
+    const updated = { ...hotwords, [newHotword.toLowerCase()]: newHotwordType };
+    handleUpdateHotwords(updated);
+    setNewHotword('');
+  };
+
+  const removeHotword = (hw: string) => {
+    const updated = { ...hotwords };
+    delete updated[hw];
+    handleUpdateHotwords(updated);
+  };
 
   const recognitionRef = useRef<any>(null);
 
@@ -297,13 +348,56 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
                   </p>
                 </div>
               </div>
+
+              <div className="p-4 bg-white border border-gray-200 rounded-xl mt-4">
+                <h3 className="mb-3 text-lg font-semibold">Custom Emergency Hotwords</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Define custom phrases that will automatically trigger specific emergency alerts when detected in your voice or text.
+                </p>
+
+                <div className="flex gap-2 mb-4">
+                  <input
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    placeholder="Enter phrase (e.g., 'Code Red')"
+                    value={newHotword}
+                    onChange={(e) => setNewHotword(e.target.value)}
+                  />
+                  <select
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    value={newHotwordType}
+                    onChange={(e) => setNewHotwordType(e.target.value)}
+                  >
+                    <option value="security">Security</option>
+                    <option value="health">Health</option>
+                  </select>
+                  <Button onClick={addHotword} size="sm" className="bg-purple-600 text-white rounded-lg">Add</Button>
+                </div>
+
+                <div className="space-y-2">
+                  {Object.entries(hotwords).map(([hw, type]) => (
+                    <div key={hw} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
+                      <div>
+                        <span className="font-medium text-gray-800">"{hw}"</span>
+                        <span className="text-xs text-gray-500 ml-2">→ {type.toUpperCase()}</span>
+                      </div>
+                      <button onClick={() => removeHotword(hw)} className="text-red-500 hover:text-red-700 text-sm">
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  {Object.keys(hotwords).length === 0 && (
+                    <p className="text-sm text-gray-400 italic text-center">No custom hotwords set.</p>
+                  )}
+                </div>
+              </div>
+
             </Card>
           </div>
         )}
-      </div>
+      </div >
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
+      < div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 shadow-lg" >
         <div className="max-w-4xl mx-auto flex justify-around">
           <button
             onClick={() => setActiveTab('sos')}
@@ -322,7 +416,7 @@ export function UserDashboard({ userId, userName, onSendIncident, apiBaseUrl }: 
             <span className="text-xs">Profile</span>
           </button>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }

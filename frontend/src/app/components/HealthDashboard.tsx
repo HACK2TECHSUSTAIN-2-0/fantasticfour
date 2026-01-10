@@ -14,7 +14,7 @@ interface Incident {
   isVoice: boolean;
   timestamp: string;
   status: 'pending' | 'responding' | 'resolved';
-  authority: 'health' | 'security';
+  authority: 'health' | 'security' | 'general';
   officer_message?: string;
   final_severity?: string;
   reasoning?: string;

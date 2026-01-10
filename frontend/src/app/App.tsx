@@ -40,7 +40,7 @@ interface Incident {
   isVoice: boolean;
   timestamp: string;
   status: 'pending' | 'responding' | 'resolved';
-  authority: 'health' | 'security';
+  authority: 'health' | 'security' | 'general';
   // LLM Enrichment
   officer_message?: string;
   final_severity?: string;
@@ -308,6 +308,24 @@ export default function App() {
     }
   };
 
+  const handleUpdateIncidentAuthority = async (id: string, authority: 'health' | 'security') => {
+    try {
+      const res = await fetch(`${API_URL}/incidents/${id}/authority`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authority })
+      });
+      if (res.ok) {
+        toast.success(`Incident authority updated to ${authority.toUpperCase()}`);
+        refreshData();
+      } else {
+        showError('Failed to update authority');
+      }
+    } catch {
+      showError('Network error updating authority');
+    }
+  };
+
   const handleSendIncident = async (userId: string, type: string, message: string, isVoice: boolean, latitude?: number, longitude?: number): Promise<string | undefined> => {
     let authority: 'health' | 'security' = 'security';
     if (type === 'medical' || type === 'accident') {
@@ -381,6 +399,7 @@ export default function App() {
           }))}
           incidents={incidents}
           onUpdatePriority={handleUpdateIncidentPriority}
+          onUpdateAuthority={handleUpdateIncidentAuthority}
         />
       )}
 
@@ -389,7 +408,7 @@ export default function App() {
           staffId={appState.staffId}
           staffName={appState.staffName}
           onLogout={handleLogout}
-          incidents={incidents.filter(i => i.authority === 'health')}
+          incidents={incidents.filter(i => i.authority === 'health' || i.authority === 'general')}
           onUpdateStatus={handleUpdateIncidentStatus}
           onFalseAlarm={handleFalseAlarm}
           onUpdatePriority={handleUpdateIncidentPriority}
@@ -401,7 +420,7 @@ export default function App() {
           staffId={appState.staffId}
           staffName={appState.staffName}
           onLogout={handleLogout}
-          incidents={incidents.filter(i => i.authority === 'security')}
+          incidents={incidents.filter(i => i.authority === 'security' || i.authority === 'general')}
           onUpdateStatus={handleUpdateIncidentStatus}
           onFalseAlarm={handleFalseAlarm}
           onUpdatePriority={handleUpdateIncidentPriority}

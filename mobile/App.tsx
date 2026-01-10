@@ -15,6 +15,7 @@ import {
   updateIncidentPriority,
   markFalseAlarm,
   updateIncidentLocation,
+  updateIncidentAuthority,
 } from './src/api';
 import * as Location from 'expo-location';
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -233,6 +234,15 @@ export default function App() {
     }
   };
 
+  const handleUpdateIncidentAuthority = async (id: string, authority: 'health' | 'security') => {
+    try {
+      await updateIncidentAuthority(id, authority);
+      refreshData();
+    } catch (error: any) {
+      Alert.alert('Failed to update authority', error?.message || 'Unable to update incident');
+    }
+  };
+
   const handleFalseAlarm = async (id: string) => {
     try {
       await markFalseAlarm(id);
@@ -332,6 +342,7 @@ export default function App() {
           users={users}
           incidents={incidents}
           onUpdatePriority={handleUpdateIncidentPriority}
+          onUpdateAuthority={handleUpdateIncidentAuthority}
         />
       ) : null}
 
@@ -340,7 +351,7 @@ export default function App() {
           staffId={appState.staffId}
           staffName={appState.staffName}
           onLogout={handleLogout}
-          incidents={incidents.filter((i) => i.authority === 'health')}
+          incidents={incidents.filter((i) => i.authority === 'health' || i.authority === 'general')}
           onUpdateStatus={handleUpdateIncidentStatus}
           onUpdatePriority={handleUpdateIncidentPriority}
           onFalseAlarm={handleFalseAlarm}
@@ -352,7 +363,7 @@ export default function App() {
           staffId={appState.staffId}
           staffName={appState.staffName}
           onLogout={handleLogout}
-          incidents={incidents.filter((i) => i.authority === 'security')}
+          incidents={incidents.filter((i) => i.authority === 'security' || i.authority === 'general')}
           onUpdateStatus={handleUpdateIncidentStatus}
           onUpdatePriority={handleUpdateIncidentPriority}
           onFalseAlarm={handleFalseAlarm}

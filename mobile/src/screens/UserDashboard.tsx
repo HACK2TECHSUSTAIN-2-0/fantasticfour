@@ -7,7 +7,7 @@ import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { colors, gradients } from '../theme';
-import { uploadSpeechToEnglish, uploadIncidentEvidence } from '../api';
+import { uploadSpeechToEnglish, uploadIncidentEvidence, getUserDetails, updateUserHotwords } from '../api';
 
 interface UserDashboardProps {
   userId: string;
@@ -23,6 +23,9 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [coords, setCoords] = useState<{ latitude?: number; longitude?: number }>({});
+  const [hotwords, setHotwords] = useState<Record<string, string>>({});
+  const [newHotword, setNewHotword] = useState('');
+  const [newHotwordType, setNewHotwordType] = useState('security');
   const backgroundListenCancelRef = useRef(false);
   const hotwordInProgressRef = useRef(false);
   const hotwordRecordingRef = useRef<Audio.Recording | null>(null); // NEW: Track hotword recording specifically
@@ -215,6 +218,38 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
       if (subscription) subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    getUserDetails(userId).then(u => {
+      if (u.hotwords) {
+        try {
+          setHotwords(JSON.parse(u.hotwords));
+        } catch { }
+      }
+    });
+  }, []);
+
+  const handleUpdate = async (newHw: Record<string, string>) => {
+    setHotwords(newHw);
+    try {
+      await updateUserHotwords(userId, JSON.stringify(newHw));
+    } catch {
+      alert('Failed to save hotwords');
+    }
+  };
+
+  const addHotword = () => {
+    if (!newHotword.trim()) return;
+    const updated = { ...hotwords, [newHotword.trim()]: newHotwordType };
+    setNewHotword('');
+    handleUpdate(updated);
+  };
+
+  const removeHotword = (hw: string) => {
+    const updated = { ...hotwords };
+    delete updated[hw];
+    handleUpdate(updated);
+  };
 
   // Background hotword
   useEffect(() => {
@@ -658,5 +693,36 @@ const styles = StyleSheet.create({
   },
   navTextInactive: {
     color: colors.muted,
+  },
+  roleChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  roleChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#eef2ff',
+  },
+  roleChipInactive: {
+    borderColor: colors.border,
+    backgroundColor: '#f8fafc',
+  },
+  roleTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  roleTextInactive: {
+    color: colors.muted,
+    fontWeight: '700',
+  },
+  input: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    color: colors.text,
   },
 });

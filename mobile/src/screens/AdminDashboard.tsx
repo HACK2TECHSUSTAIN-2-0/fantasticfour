@@ -19,6 +19,7 @@ interface AdminDashboardProps {
   users: User[];
   incidents: Incident[];
   onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
+  onUpdateAuthority: (id: string, authority: 'health' | 'security') => void;
 }
 
 export function AdminDashboard({
@@ -31,6 +32,7 @@ export function AdminDashboard({
   users,
   incidents,
   onUpdatePriority,
+  onUpdateAuthority,
 }: AdminDashboardProps) {
   const now = new Date().toLocaleString();
   const normalizeSeverity = (sev?: string) => {
@@ -256,6 +258,33 @@ export function AdminDashboard({
                     ))}
                   </View>
                 </View>
+
+                <View style={[styles.priorityRow, { marginTop: 12 }]}>
+                  <Text style={styles.subtle}>Reassign Authority</Text>
+                  <View style={styles.priorityButtons}>
+                    {['security', 'health'].map(role => {
+                      const isActive = incident.authority === role;
+                      return (
+                        <TouchableOpacity
+                          key={role}
+                          style={[
+                            styles.priorityChip,
+                            isActive ? { backgroundColor: role === 'security' ? '#ffedd5' : '#fee2e2', borderColor: role === 'security' ? '#ea580c' : '#dc2626' } : null
+                          ]}
+                          onPress={() => onUpdateAuthority(incident.id, role as any)}
+                        >
+                          <Text style={[
+                            styles.priorityChipText,
+                            isActive ? { color: role === 'security' ? '#ea580c' : '#dc2626' } : null
+                          ]}>
+                            {role.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                </View>
+
                 <View style={[styles.actionRow, { marginTop: 8, flexWrap: 'wrap', gap: 8 }]}>
                   <PrimaryButton
                     label="Contact User"
@@ -340,7 +369,7 @@ export function AdminDashboard({
           </View>
         </View>
       </Modal>
-    </View>
+    </View >
   );
 }
 

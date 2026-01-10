@@ -19,7 +19,7 @@ interface Incident {
   isVoice: boolean;
   timestamp: string;
   status: 'pending' | 'responding' | 'resolved';
-  authority: 'health' | 'security';
+  authority: 'health' | 'security' | 'general';
   officer_message?: string;
   final_severity?: string;
   reasoning?: string;
@@ -41,9 +41,10 @@ interface AdminDashboardProps {
   users: Array<{ id: string; name: string }>;
   incidents: Incident[];
   onUpdatePriority: (id: string, sev: 'low' | 'medium' | 'critical') => void;
+  onUpdateAuthority: (id: string, authority: 'health' | 'security') => void;
 }
 
-export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRemoveUser, members, users, incidents, onUpdatePriority }: AdminDashboardProps) {
+export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRemoveUser, members, users, incidents, onUpdatePriority, onUpdateAuthority }: AdminDashboardProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newMemberRole, setNewMemberRole] = useState<'admin' | 'health' | 'security'>('health');
   const [newMemberName, setNewMemberName] = useState('');
@@ -381,6 +382,31 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
                         Change Priority
                       </Button>
                     </div>
+
+                    <div className="mt-3">
+                      <label className="text-xs text-gray-600">Reassign Authority</label>
+                      <div className="flex gap-2 mt-1">
+                        <Button
+                          variant={incident.authority === 'security' ? 'default' : 'outline'}
+                          size="sm"
+                          className={`flex-1 rounded-xl ${incident.authority === 'security' ? 'bg-orange-600' : ''}`}
+                          onClick={() => onUpdateAuthority(incident.id, 'security')}
+                          disabled={incident.authority === 'security'}
+                        >
+                          <Shield className="w-3 h-3 mr-1" /> Security
+                        </Button>
+                        <Button
+                          variant={incident.authority === 'health' ? 'default' : 'outline'}
+                          size="sm"
+                          className={`flex-1 rounded-xl ${incident.authority === 'health' ? 'bg-red-600' : ''}`}
+                          onClick={() => onUpdateAuthority(incident.id, 'health')}
+                          disabled={incident.authority === 'health'}
+                        >
+                          <Activity className="w-3 h-3 mr-1" /> Health
+                        </Button>
+                      </div>
+                    </div>
+
                     {incident.latitude && incident.longitude && (
                       <div className="mt-3 space-y-2">
                         <div className="text-sm text-gray-600">Location:</div>
@@ -487,10 +513,11 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
             )}
           </div>
         </Card>
-      </div>
+      </div >
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+      < AlertDialog open={!!userToDelete
+      } onOpenChange={() => setUserToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -505,7 +532,7 @@ export function AdminDashboard({ adminId, adminName, onLogout, onAddMember, onRe
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
-    </div>
+      </AlertDialog >
+    </div >
   );
 }
