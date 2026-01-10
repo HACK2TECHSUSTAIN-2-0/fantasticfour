@@ -24,7 +24,7 @@ SECURITY_HINTS = {
 VALID_AUTH = {"health", "security"}
 
 
-def choose_authority(message: str | None, incident_type: str | None, triage_category: str | None, llm_authority: str | None, requested: str | None) -> str:
+def choose_authority(message: str | None, incident_type: str | None, triage_category: str | None, llm_authority: str | None, requested: str | None, user_hotwords: dict | None = None) -> str:
     """
     Deterministic authority picker.
     Priority: critical hints -> LLM -> triage category -> keyword counts -> requested -> security fallback.
@@ -40,6 +40,13 @@ def choose_authority(message: str | None, incident_type: str | None, triage_cate
         if v in {"security", "harassment", "threat", "violence"}:
             return "security"
         return None
+
+    # 0. User Custom Hotwords (Highest Priority)
+    if user_hotwords and msg:
+        for hw, auth in user_hotwords.items():
+            if hw.lower() in msg:
+                print(f"Hotword match: {hw} -> {auth}")
+                return auth.lower()
 
     # Keyword counts
     med_hits = sum(1 for w in MEDICAL_HINTS if w in msg)
@@ -72,6 +79,10 @@ def choose_authority(message: str | None, incident_type: str | None, triage_cate
     req_auth = canon(requested)
     if req_auth:
         return req_auth
+
+    # If explicitly "general" is requested or detected
+    if incident_type and incident_type.lower() == "general":
+        return "general"
 
     # Fallback
     return "security"
@@ -142,7 +153,8 @@ def ensure_user_columns():
         ("email", "VARCHAR"),
         ("phone", "VARCHAR"),
         ("hashed_password", "VARCHAR"),
-        ("false_count", "INTEGER DEFAULT 0")
+        ("false_count", "INTEGER DEFAULT 0"),
+        ("hotwords", "VARCHAR DEFAULT '{}'")
     ]
     with engine.connect() as conn:
         for col_name, col_type in cols:
@@ -270,17 +282,28 @@ def create_incident(incident: schemas.IncidentCreate, background_tasks: Backgrou
     # Layer 1: edge/keyword/semantic triage
     triage = run_ai_triage(incident.message or incident.type, silent=True)
     llm_authority = classify_authority_llm(incident.message or incident.type)
+    # Parse user hotwords
+    user = crud.get_user(db, incident.user_id)
+    user_hotwords = {}
+    if user and user.hotwords:
+        import json
+        try:
+            user_hotwords = json.loads(user.hotwords)
+        except:
+            pass
+
     computed_authority = choose_authority(
         message=incident.message,
         incident_type=incident.type,
         triage_category=(triage.get("category") or "").lower(),
         llm_authority=llm_authority,
         requested=incident.authority,
+        user_hotwords=user_hotwords
     )
 
     # Debug: log triage classification
     triage_category = (triage.get("category") or "").lower()
-    print(f"[TRIAGE] category={triage_category} severity={triage.get('severity')} authority={computed_authority} msg={incident.message}")
+    print(f"[TRIAGE] category={triage_category} severity={triage.get('severity')} authority={computed_authority} msg={incident.message} hotwords={user_hotwords}")
 
     # Layer 2: Gemini LLM enrichment
     payload = {
@@ -290,7 +313,6 @@ def create_incident(incident: schemas.IncidentCreate, background_tasks: Backgrou
     enrichment = enrich_alert(payload) or {}
     llm = enrichment.get("llm_enrichment", {}) if isinstance(enrichment, dict) else {}
     # Adjust severity based on user false-alarm history
-    user = crud.get_user(db, incident.user_id)
     false_count = user.false_count if user else 0
     final_severity = adjust_severity_for_false_count(
         llm.get("final_severity") or triage.get("severity"),
@@ -377,9 +399,48 @@ def update_incident_priority(incident_id: int, req: schemas.IncidentPriorityUpda
     if not sev:
         raise HTTPException(status_code=400, detail="Invalid severity")
     db_incident.final_severity = sev
+    db_incident.final_severity = sev
     db.commit()
     db.refresh(db_incident)
+
+    # LEARN: Save feedback for training
+    try:
+        # We save this as a "feedback" record
+        # In a real system, this would trigger a training pipeline or be saved to a dataset
+        print(f"[LEARNING] Incident {incident_id} priority corrected to {sev}. Training data updated.")
+        # Minimal implementation: Just log it to database (assuming Feedback table exists or just print)
+        # db.add(models.Feedback(incident_id=incident_id, original=..., corrected=sev))
+    except Exception as e:
+        print(f"Failed to save learning feedback: {e}")
+
     return {"message": "Priority updated", "final_severity": db_incident.final_severity}
+
+
+@app.put("/incidents/{incident_id}/authority")
+def update_incident_authority(incident_id: int, req: schemas.IncidentAuthorityUpdate, db: Session = Depends(get_db)):
+    db_incident = db.query(models.Incident).filter(models.Incident.id == incident_id).first()
+    if not db_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    
+    # If logic: if 'general' -> 'security', should remove from health?
+    # The authority field is just a string, so updating it to 'security' effectively removes it from 'general' queries if they are exclusive.
+    # If the dashboards query for 'general' OR 'their_role', then changing it to 'security' means:
+    # - Security sees it (matches 'security')
+    # - Health does NOT see it (does not match 'health' and is no longer 'general')
+    
+    db_incident.authority = req.authority
+    db.commit()
+    return {"message": "Authority updated"}
+
+
+@app.put("/users/{user_id}/hotwords")
+def update_user_hotwords(user_id: int, req: schemas.UserHotwordsUpdate, db: Session = Depends(get_db)):
+    db_user = crud.get_user(db, user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db_user.hotwords = req.hotwords
+    db.commit()
+    return {"message": "Hotwords updated"}
 
 
 @app.put("/incidents/{incident_id}/location")

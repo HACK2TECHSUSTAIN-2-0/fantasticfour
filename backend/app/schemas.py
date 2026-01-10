@@ -10,8 +10,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     email: str
-    phone: str
-    phone: str
+    phone: str   
     password: str
     hotwords: Optional[str] = "{}"
 
@@ -81,7 +80,6 @@ class IncidentPriorityUpdate(BaseModel):
 
 
 class IncidentLocationUpdate(BaseModel):
-    latitude: float
     latitude: float
     longitude: float
 

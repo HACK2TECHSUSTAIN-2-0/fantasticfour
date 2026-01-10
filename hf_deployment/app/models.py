@@ -27,7 +27,10 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     phone = Column(String, nullable=True)
     hashed_password = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=True)
     false_count = Column(Integer, default=0)
+    hotwords = Column(String, default="{}") # JSON string mapping hotword -> authority
 
 class AuthorityMember(Base):
     __tablename__ = "authority_members"
@@ -57,3 +60,14 @@ class Incident(Base):
     longitude = Column(Float, nullable=True)
     audio_evidence = Column(String, nullable=True)
     report_count = Column(Integer, default=1)
+
+class Feedback(BaseModel):
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    incident_id = Column(Integer)
+    original_severity = Column(String)
+    corrected_severity = Column(String)
+    incident_message = Column(String)
+    timestamp = Column(DateTime, default=lambda: datetime.datetime.now(ZoneInfo("Asia/Kolkata")))
+
