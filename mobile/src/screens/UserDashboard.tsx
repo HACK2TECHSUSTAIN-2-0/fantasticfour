@@ -443,6 +443,68 @@ export function UserDashboard({ userId, userName, onSendIncident, onLogout }: Us
                 <Text style={styles.label}>Session</Text>
                 <Text style={styles.body}>Stays active until removed by admin</Text>
               </View>
+            </Card>
+
+            <Card style={{ gap: 12 }}>
+              <Text style={styles.title}>Custom Hotwords</Text>
+              <Text style={styles.caption}>
+                Phrases that trigger auto-alerts.
+              </Text>
+
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="New phrase (e.g. 'Help me')"
+                  value={newHotword}
+                  onChangeText={setNewHotword}
+                />
+                <PrimaryButton
+                  label="Add"
+                  onPress={addHotword}
+                  style={{ width: 80 }}
+                />
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                {['security', 'health'].map(type => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.roleChip,
+                      newHotwordType === type ? styles.roleChipActive : styles.roleChipInactive,
+                      { flex: 1 }
+                    ]}
+                    onPress={() => setNewHotwordType(type)}
+                  >
+                    <Text style={
+                      newHotwordType === type ? styles.roleTextActive : styles.roleTextInactive
+                    }>{type.charAt(0).toUpperCase() + type.slice(1)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={{ gap: 8, marginTop: 8 }}>
+                {Object.entries(hotwords).map(([hw, type]) => (
+                  <View key={hw} style={styles.historyRow}>
+                    <View style={styles.rowBetween}>
+                      <View>
+                        <Text style={styles.historyTitle}>{hw}</Text>
+                        <Text style={styles.historyTime}>{type.toUpperCase()}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => removeHotword(hw)}>
+                        <Text style={{ color: '#ef4444', fontWeight: '600' }}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+                {Object.keys(hotwords).length === 0 && (
+                  <Text style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', padding: 8 }}>
+                    No custom hotwords yet.
+                  </Text>
+                )}
+              </View>
+            </Card>
+
+            <Card style={{ gap: 10 }}>
               {onLogout ? (
                 <PrimaryButton
                   label="Logout"
